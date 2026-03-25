@@ -66,82 +66,142 @@ async def http() -> aiohttp.ClientSession:
 # ═══════════════════════════════════════════════════
 _KB = """
 वेदाचार्य आदिवासी हर्बल हेयर ऑयल — ₹1499 (MRP ₹2799, 46% छूट) — 500ml
-सामग्री: भृंगराज, आंवला, ब्राह्मी, शंखपुष्पी, नीम, जटामांसी + 108 जड़ी-बूटियाँ
+सामग्री: भृंगराज, आंवला, ब्राह्मी, शंखपुष्पी, नीम, जटामांसी + 108 प्राकृतिक जड़ी-बूटियाँ
 फायदे: बाल झड़ना बंद · नए बाल उगना · डैंड्रफ खत्म · जड़ें मजबूत · चमक · घनापन
-उपयोग: रात को स्कैल्प पर हल्की मालिश → सुबह माइल्ड शैंपू से धोएं
-परिणाम: 30 दिन में असर | डिलीवरी: 5-7 दिन, COD, 7-दिन return | 418 संतुष्ट ग्राहक
+उपयोग: हफ्ते में 2-3 बार रात को scalp पर हल्की massage करें → सुबह mild shampoo से wash करें
+परिणाम: 30 दिन में फर्क | डिलीवरी: 5-7 दिन, COD available, 7-दिन return policy | 418 संतुष्ट ग्राहक
 
 सामान्य सवाल:
-- हफ्ते में 2-3 बार काफी | रात भर रखें — सबसे ज़्यादा असर
-- नीम+आंवला डैंड्रफ जड़ से खत्म | भृंगराज follicles सक्रिय → गंजेपन में उगाता है
-- हल्का गुनगुना करें → असर दोगुना | बच्चों पर (5+) और पुरुष+महिला दोनों के लिए
-- आंवला+ब्राह्मी सफेद होने से रोकते हैं | ब्राह्मी सिर दर्द में राहत
-- प्राकृतिक कंडीशनर जैसा काम करता है | expired तेल बिल्कुल नहीं
+- हफ्ते में 2-3 बार काफी | रात भर रखें — सबसे ज़्यादा असर होता है
+- नीम+आंवला डैंड्रफ जड़ से खत्म करते हैं | भृंगराज follicles सक्रिय करता है → गंजेपन में भी उगाता है
+- हल्का गुनगुना करके लगाएं → असर दोगुना | बच्चों (5+), पुरुष और महिला दोनों के लिए
+- आंवला+ब्राह्मी बालों को समय से पहले सफेद होने से रोकते हैं
+- प्राकृतिक conditioner की तरह काम करता है | expired तेल कभी use न करें
+
+अगर user को कोई hair problem नहीं (no problem case):
+- "आजकल pollution aur stress ki wajah se hair problems kabhi bhi start ho sakti hain."
+- "Prevention ke liye yeh 100% herbal oil ek bahut acha option hai — baalon ko strong aur healthy banata hai."
+- "Future hair problems se bachne ke liye abhi se use karna sahi rahega."
+
+अगर user को hair problem है (yes problem case):
+- "Samajh sakti hoon, aajkal yeh problem bahut common ho gayi hai."
+- "Yeh oil specially hair fall, dandruff aur hair regrowth ke liye bana hai."
+- "Natural jadibutiyan scalp ko nourish karti hain aur dheere-dheere hair growth improve karti hain."
+- Use: "Hafte me 2-3 baar raat ko halka massage karke lagaen aur subah mild shampoo se wash kar len."
 
 कीमत आपत्ति:
-- महंगा / costly: "500ml = 2-3 महीने = ₹16/दिन। सैलून ₹500-2000 एक बार।"
-- सस्ता chahiye: "सस्ते में mineral oil होता है — जड़ी-बूटियाँ नहीं। 418 proof है।"
-- Parachute/Patanjali/Dabur: "रोज़मर्रा का तेल है। यह 108 herbs का medicinal formula है।"
-- पैसे नहीं / baad mein: "COD है — घर पर आए तब ₹1499 दें। 7-दिन return। कोई risk नहीं।"
-- guarantee: "7-दिन return। 418 में से किसी ने वापस नहीं किया।"
+- महंगा/costly: "500ml = 2-3 mahine = sirf 16 rupaye roz. Salon mein ek session 500 se 2000 tak hota hai."
+- सस्ता chahiye: "Saste tel mein sirf mineral oil hota hai — asli jadibutiyan nahi. 418 customers ka result proof hai."
+- Parachute/Patanjali/Dabur: "Woh rozmarra ke tel hain. Yeh 108 herbs ka specially bana medicinal formula hai."
+- पैसे नहीं/baad mein: "COD hai — ghar par aane par 1499 dena hai. 7-din return bhi hai. Koi risk nahi."
+- guarantee: "7-din return policy hai. 418 customers mein se kisi ne wapas nahi kiya — kyunki result milta hai."
 """
 
 # ═══════════════════════════════════════════════════
-# SYSTEM PROMPT  — strict, no filler, no repetition
+# SYSTEM PROMPT — your 7-step sales script, strict rules
 # ═══════════════════════════════════════════════════
-SYSTEM_PROMPT = f"""तुम प्रिया हो — Teleone की sales executive। काम: आदिवासी हेयर ऑयल बेचना।
+SYSTEM_PROMPT = f"""Tum Priya ho — Teleone ki polite, friendly aur soft-spoken female sales executive.
+Tumhara kaam: Vedacharya Adivasi Hair Oil ki sales karna aur order lena.
+Bolo: soft Hindi + light Hinglish — jaise ek helpful call center executive bolti hai.
 
+Sales Script (follow karo):
+Step 1 — Permission: "Namaste, main Vedacharya Adivasi Hair Oil se bol rahi hoon. Kya main aapse 1-2 minute baat kar sakti hoon?"
+Step 2 — Hair Problem: "Kya aapko hair fall, dandruff, safed baal ya hair growth slow hone ki koi problem hai?"
+Step 3A — Agar NO problem: Bolo pollution aur stress ki wajah se prevention zaroori hai. Yeh 100% herbal hai, baalon ko strong banata hai. Future problems se bachne ke liye abhi start karein.
+Step 3B — Agar YES problem: Samjho unki problem, batao yeh oil specially iske liye bana hai, natural jadibutiyan scalp nourish karti hain, hafte 2-3 baar raat ko lagaen.
+Step 4 — Push: "Agar aap chahein to main abhi order place kar sakti hoon."
+Step 5 — Price: "Iska price 1499 rupaye hai — MRP 2799 tha, yani 46 percent ki choot. Cash on Delivery bhi available hai."
+Step 6 — Order details: Naam, pata, pincode, contact number.
+Step 7 — Close: "Shukriya! Aapka order successfully confirm ho gaya. Jaldi delivery milegi. Have a nice day!"
+
+Product knowledge:
 {_KB}
 
-नियम — तोड़ना मना:
-1. OUTPUT = केवल बोला जाने वाला वाक्य। label/emoji/bracket नहीं।
-2. हिंदी में बोलो — user Hinglish/English में बोले तो भी।
-3. 1 वाक्य। maximum 2। इससे ज़्यादा कभी नहीं।
-4. ये शब्द forbidden: हम्म, अच्छा, ओह, जी हाँ बिल्कुल, देखिए, तो, वैसे
-5. last_reply से अलग जवाब दो — दोहराओ मत।
-6. हर reply के अंत में order की तरफ ले जाओ।
-7. दूसरा topic: "मैं केवल आदिवासी हेयर ऑयल के बारे में बता सकती हूँ।"
-8. user हाँ/order/chahiye/lena कहे → तुरंत नाम पूछो।""".strip()
+Sakht niyam — todna mana:
+1. OUTPUT = sirf bola jaane wala ek ya do waakyaa. Koi label/emoji/bracket nahi.
+2. Hinglish + soft Hindi mein bolo — user English mein bole tab bhi Hindi mein jawab do.
+3. Maximum 2 waakyaa. Isse zyaada kabhi nahi.
+4. Yeh words forbidden hain: hmmm, achha, oh, ji haan bilkul, dekhiye, toh, waise.
+5. last_reply se alag jawab do — repeat mat karo.
+6. Har reply ke ant mein order ki taraf le jao.
+7. Doosra topic aaye to: "Main sirf Adivasi Hair Oil ke baare mein bata sakti hoon."
+8. User haan/order/chahiye/lena kahe → turant naam poochho.""".strip()
 
 # ═══════════════════════════════════════════════════
 # CALL STATE
+# States: permission → hair_problem → pitch →
+#         collecting_name → collecting_address →
+#         collecting_pincode → confirming → done
 # ═══════════════════════════════════════════════════
 _calls: dict[str, dict] = {}
 
 def new_cs(caller=""):
     return {
-        "state":    "pitch",
-        "name":     "", "address": "", "pincode": "",
-        "caller":   caller,
-        "turn":     0,
-        "last_bot": "",
+        "state":        "permission",
+        "hair_problem": None,
+        "name":         "", "city": "", "address": "", "pincode": "",
+        "caller":       caller,
+        "turn":         0,
+        "last_bot":     "",
     }
 
 # ═══════════════════════════════════════════════════
 # STATIC REPLY VARIANTS  — rotated to prevent repetition
 # ═══════════════════════════════════════════════════
+# Step 1 — curiosity hook greeting (Fix 1: strong first 5 seconds)
 _GREET = [
-    "नमस्ते! मैं प्रिया हूँ Teleone से — बाल झड़ रहे हैं या गंजापन है?",
-    "नमस्ते! Teleone से प्रिया बोल रही हूँ — बालों की कोई समस्या है?",
-    "नमस्ते! मैं प्रिया हूँ — डैंड्रफ या बाल झड़ने की परेशानी है?",
+    "Namaste! Main Priya bol rahi hoon Vedacharya se — aajkal bahut log hair fall ki wajah se pareshan hain, isliye short help ke liye call kiya hai, kya 1 minute milega?",
+    "Namaste! Priya bol rahi hoon Vedacharya Adivasi Hair Oil se — ek zaroori baat share karni thi balon ke baare mein, kya abhi baat ho sakti hai?",
+    "Namaste! Main Priya hoon — aajkal hair fall aur baal patale hone ki problem bahut badhti ja rahi hai, is baare mein 1 minute mein kuch kaam ki baat batani thi, kya chalega?",
 ]
+# Step 2 — ask hair problem
+_ASK_HAIR = [
+    "Kya aapko hair fall, dandruff, safed baal ya hair growth slow hone ki koi problem ho rahi hai?",
+    "Kya balon se related koi problem hai aapko — jaise hair fall, dandruff ya baal patale ho rahe hain?",
+    "Balon mein koi pareshani hai kya — jaise baal jhadna, dandruff ya naye baal nahi ug rahe?",
+]
+# Step 3A — user has NO hair problem (Fix 2: trust line added)
+_NO_PROBLEM = [
+    "Bahut achi baat hai! Waise aajkal pollution aur stress ki wajah se hair fall kabhi bhi start ho sakta hai — aur 418 se zyaada log pehle se hi yeh oil use karke apne baalon ko strong rakh rahe hain.",
+    "Samajh sakti hoon. Lekin aajkal jinhe bhi problem nahi thi, unhe bhi achanak hair fall shuru ho gaya — pollution, stress, paani sab affect karta hai. Prevention ke liye yeh 100% herbal oil bahut kaam aata hai.",
+]
+# Step 3B — user HAS a hair problem (Fix 3: emotional trigger added)
+_YES_PROBLEM = [
+    "Bilkul samajh sakti hoon — hair fall agar time pe control na ho to baal dheere dheere patale aur kam hote jate hain. Vedacharya Adivasi Hair Oil mein 108 natural jadibutiyan hain jo scalp ko nourish karti hain aur hair growth dobara shuru karti hain.",
+    "Haan, aajkal yeh problem bahut common ho gayi hai — lekin jitna jaldi solution lete hain utna better hota hai. Is oil mein bhringraj aur amla hain jo baal jhadna rokta hai aur naye baal ugata hai. 418 customers ko already result mila hai.",
+]
+# Step 4 — DIRECT close (Fix 4: no more "agar aap chahein")
+_PUSH = [
+    "Main aapka order abhi confirm kar deti hoon — naam bataiye.",
+    "Abhi limited stock mein special offer chal raha hai — naam bataiye, order place karte hain.",  # Fix 5: urgency
+    "Delivery bilkul free zone mein aati hai aapke paas — bas naam bataiye.",
+]
+# Urgency line injected into pitch after YES/NO problem detection (Fix 5)
+_URGENCY = "Aur yeh offer limited stock par chal raha hai — aaj confirm karna better rahega."
+# Step 6 — collect order details (Fix 6: Name → City → Full Address → Pincode)
 _ASK_NAME = [
-    "ऑर्डर के लिए अपना पूरा नाम बताइए।",
-    "आपका पूरा नाम क्या है?",
-    "नाम बताइए — ऑर्डर शुरू करते हैं।",
+    "Main aapka order abhi confirm kar deti hoon — aapka pura naam bataiye.",
+    "Bilkul! Pehle aapka pura naam kya hai?",
+    "Naam bataiye — order place karte hain.",
+]
+_ASK_CITY = [
+    "Aur aap kis shehar mein hain?",
+    "Aapka shehar kaun sa hai?",
+    "Delivery kis shehar mein karni hai?",
 ]
 _ASK_ADDR = [
-    "अब पूरा पता बताइए — गली, शहर और राज्य।",
-    "डिलीवरी पता बताइए — गली, मोहल्ला, शहर, राज्य।",
-    "पूरा पता बताइए।",
+    "Ghar ka pura pata bataiye — gali number, mohalla ya colony ka naam.",
+    "Puri gali aur colony ka naam bataiye.",
+    "Ghar ka pata bataiye — gali aur mohalla.",
 ]
-_ASK_PIN  = "पिनकोड बताइए।"
-_R_NAME   = "नाम फिर से बताइए।"
-_R_ADDR   = "पता फिर से बताइए — गली, शहर, राज्य।"
-_R_PIN    = "6 अंकों का पिनकोड फिर से बताइए।"
-_SILENCE  = "आपकी बात नहीं सुनाई दी — दोबारा बोलें।"
-_OFFTOPIC = "मैं केवल आदिवासी हेयर ऑयल के बारे में बता सकती हूँ — मँगवाना है?"
-_DONE     = "आपका ऑर्डर हो चुका है। धन्यवाद!"
+_ASK_PIN  = "Aur pincode kya hai?"
+_R_NAME   = "Naam phir se clearly bataiye."
+_R_CITY   = "Shehar ka naam phir se bataiye."
+_R_ADDR   = "Pata thoda detail mein bataiye — gali aur mohalla."
+_R_PIN    = "6 ankon ka pincode phir se bataiye."
+_SILENCE  = "Aapki baat sunai nahi di — dobara bolein."
+_OFFTOPIC = "Main sirf Adivasi Hair Oil ke baare mein bata sakti hoon — kya mangwana hai?"
+_DONE     = "Aapka order ho chuka hai. Shukriya!"
 
 def _v(lst, n): return lst[n % len(lst)]
 
@@ -152,8 +212,8 @@ _ac:   dict[str, bytes] = {}   # audio cache (RAM)
 _warm: dict[str, str]   = {}   # key → cache_id for pre-warmed clips
 
 async def prewarm():
-    """Generate greeting + ask_name TTS at startup so first 2 turns are instant."""
-    for key, text in [("greet", _GREET[0]), ("name", _ASK_NAME[0])]:
+    """Generate greeting + ask_hair TTS at startup so first 2 turns are instant."""
+    for key, text in [("greet", _GREET[0]), ("hair", _ASK_HAIR[0])]:
         audio = await tts(text)
         if audio:
             _ac[f"w_{key}"] = audio
@@ -330,9 +390,9 @@ def get_pin(t): m = re.search(r"\b\d{6}\b", t); return m.group() if m else ""
 async def process(sid: str, text: str, caller: str) -> tuple[str, bool]:
     """
     Returns (reply_text, should_hangup).
-    GPT called ONLY in pitch state.
-    All other states use instant static replies. [W5]
-    W2: for pitch state, GPT + TTS run in parallel inside mk_twiml caller.
+    6 conversion fixes applied:
+    F1 Strong hook greeting  F2 Trust line  F3 Emotional trigger
+    F4 Direct close          F5 Urgency     F6 Name→City→Address→Pincode
     """
     if sid not in _calls:
         _calls[sid] = new_cs(caller)
@@ -342,86 +402,145 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool]:
     t     = text.strip()
     state = cs["state"]
 
-    # ── silence ───────────────────────────────
+    # ── silence ───────────────────────────────────
     if not t:
         return {
             "collecting_name":    _R_NAME,
+            "collecting_city":    _R_CITY,
             "collecting_address": _R_ADDR,
             "collecting_pincode": _R_PIN,
         }.get(state, _SILENCE), False
 
-    # ── done ──────────────────────────────────
+    # ── done ──────────────────────────────────────
     if state == "done":
         return _DONE, True
 
-    # ── off-topic ─────────────────────────────
+    # ── off-topic guard ───────────────────────────
     if is_off(t):
         return _OFFTOPIC, False
 
-    # ── PITCH ─────────────────────────────────
+    # ── STEP 1: PERMISSION (hook already in greeting) ──
+    if state == "permission":
+        if is_no(t):
+            # Don't give up — mini bridge to Step 2
+            reply = "Koi baat nahi — bas 20 second. Kya aapke baalon mein hair fall ya dandruff ki koi problem hai?"
+            cs["state"]    = "hair_problem"
+            cs["last_bot"] = reply
+            return reply, False
+        cs["state"] = "hair_problem"
+        reply = _v(_ASK_HAIR, cs["turn"])
+        cs["last_bot"] = reply
+        return reply, False
+
+    # ── STEP 2: HAIR PROBLEM ──────────────────────
+    if state == "hair_problem":
+        tl = t.lower()
+        _yes_words = {"haan","ha","han","yes","hai","ho rahi","ho raha","hota","hoti",
+                      "jhad","dandruff","safed","baal","problem","pareshaan","takleef",
+                      "हाँ","हां","है","झड़","समस्या","परेशान"}
+        has_problem = any(w in tl for w in _yes_words) or is_buy(t)
+        no_problem  = is_no(t) or any(w in tl for w in
+                      ["nahi","nahin","no problem","theek","bilkul theek","sab theek",
+                       "नहीं","ठीक","सब ठीक"])
+
+        if no_problem and not has_problem:
+            # Step 3A — F2: trust (418 customers) built in
+            cs["hair_problem"] = False
+            cs["state"]        = "pitch"
+            body  = _v(_NO_PROBLEM, cs["turn"])
+            # F5: urgency appended
+            full  = body + " " + _URGENCY
+            cs["last_bot"] = full
+            return full, False
+        else:
+            # Step 3B — F3: emotional trigger built in
+            cs["hair_problem"] = True
+            cs["state"]        = "pitch"
+            body   = _v(_YES_PROBLEM, cs["turn"])
+            # usage + price + F5 urgency
+            detail = ("Hafte mein 2-3 baar raat ko halka massage karein, subah mild shampoo se wash karlein. "
+                      "Sirf 1499 rupaye — Cash on Delivery. " + _URGENCY)
+            full   = body + " " + detail
+            cs["last_bot"] = full
+            return full, False
+
+    # ── STEP 3+4: PITCH ───────────────────────────
     if state == "pitch":
         if is_buy(t):
             cs["state"] = "collecting_name"
+            # F4: direct close — no "agar aap chahein"
             reply = _v(_ASK_NAME, cs["turn"])
             cs["last_bot"] = reply
             return reply, False
-        # GPT handles questions + objections (price/competitor/doubt)
         reply = await gpt(cs, t)
         cs["last_bot"] = reply
         return reply, False
 
-    # ── NAME ──────────────────────────────────
+    # ── STEP 6A: NAME ─────────────────────────────
     if state == "collecting_name":
-        if len(t) >= 2 and not is_buy(t) and "?" not in t:
+        if len(t) >= 2 and "?" not in t:
             name = re.sub(
                 r"^(mera naam|mera name|main|i am|naam hai|name is|मेरा नाम|मैं)\s+",
                 "", t, flags=re.IGNORECASE
             ).strip().title()
             cs["name"]  = name
+            cs["state"] = "collecting_city"     # F6: go to city next
+            reply = _v(_ASK_CITY, cs["turn"])
+            cs["last_bot"] = reply
+            return f"{name} ji, " + reply, False
+        return _R_NAME, False
+
+    # ── STEP 6B: CITY (Fix 6 — new step) ─────────
+    if state == "collecting_city":
+        if len(t) >= 2:
+            cs["city"]  = t.strip().title()
             cs["state"] = "collecting_address"
             reply = _v(_ASK_ADDR, cs["turn"])
             cs["last_bot"] = reply
-            return f"{name} जी, " + reply, False
-        return _R_NAME, False
+            return reply, False
+        return _R_CITY, False
 
-    # ── ADDRESS ───────────────────────────────
+    # ── STEP 6C: ADDRESS ──────────────────────────
     if state == "collecting_address":
-        if len(t) >= 8:
-            cs["address"] = t
+        if len(t) >= 5:
+            # Combine city + address for full delivery address
+            cs["address"] = f"{t.strip()}, {cs['city']}"
             cs["state"]   = "collecting_pincode"
             cs["last_bot"] = _ASK_PIN
             return _ASK_PIN, False
         return _R_ADDR, False
 
-    # ── PINCODE ───────────────────────────────
+    # ── STEP 6D: PINCODE ──────────────────────────
     if state == "collecting_pincode":
         pin = get_pin(t)
         if pin:
             cs["pincode"] = pin
             cs["state"]   = "confirming"
-            reply = (f"एक बार confirm करें — "
-                     f"नाम: {cs['name']}, "
-                     f"पता: {cs['address']}, "
-                     f"पिनकोड: {pin}। सही है?")
+            reply = (f"Ek baar confirm kar leti hoon — "
+                     f"Naam: {cs['name']}, "
+                     f"Shehar: {cs['city']}, "
+                     f"Pata: {cs['address']}, "
+                     f"Pincode: {pin}. Sahi hai?")
             cs["last_bot"] = reply
             return reply, False
         return _R_PIN, False
 
-    # ── CONFIRMING ────────────────────────────
+    # ── STEP 7: CONFIRM + CLOSE ───────────────────
     if state == "confirming":
         if is_buy(t):
             cs["state"] = "done"
             asyncio.create_task(save_order(
-                cs["name"], cs["address"], cs["pincode"], cs["caller"]
+                cs["name"], cs["address"], cs["pincode"], cs["caller"], cs.get("city","")
             ))
-            reply = (f"बहुत बढ़िया {cs['name']} जी! ऑर्डर हो गया। "
-                     f"5-7 दिन में पहुँचेगा — डिलीवरी पर सिर्फ ₹1499 देने होंगे। धन्यवाद!")
+            reply = (f"Shukriya {cs['name']} ji! Aapka order successfully confirm ho gaya. "
+                     f"5 se 7 din mein {cs['city']} mein delivery milegi — "
+                     f"delivery par sirf 1499 rupaye dene honge. Have a nice day!")
             cs["last_bot"] = reply
             return reply, True
         if is_no(t):
-            cs.update({"state":"collecting_name","name":"","address":"","pincode":""})
-            return "फिर से शुरू करते हैं — नाम बताइए।", False
-        return "हाँ या नहीं बोलें — क्या जानकारी सही है?", False
+            cs.update({"state":"collecting_name","name":"","city":"","address":"","pincode":""})
+            return "Koi baat nahi — phir se shuru karte hain. Naam bataiye.", False
+        return "Haan ya nahi bataiye — kya yeh jaankari sahi hai?", False
 
     # fallback
     reply = await gpt(cs, t)
@@ -431,16 +550,16 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool]:
 # ═══════════════════════════════════════════════════
 # GOOGLE SHEETS  (async, non-blocking) [Phase 6]
 # ═══════════════════════════════════════════════════
-async def save_order(name, address, pincode, phone):
+async def save_order(name, address, pincode, phone, city=""):
     ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"📦 ORDER → {ts} | {name} | {address} | {pincode} | {phone}")
+    print(f"📦 ORDER → {ts} | {name} | {city} | {address} | {pincode} | {phone}")
     if not GOOGLE_SHEET_ID or not GOOGLE_CREDS_JSON:
         print("⚠️  sheet not configured")
         return
     loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, _sheet_write, name, address, pincode, phone, ts)
+    await loop.run_in_executor(None, _sheet_write, name, city, address, pincode, phone, ts)
 
-def _sheet_write(name, address, pincode, phone, ts):
+def _sheet_write(name, city, address, pincode, phone, ts):
     try:
         import google.oauth2.service_account as sa
         import googleapiclient.discovery as gd
@@ -451,21 +570,22 @@ def _sheet_write(name, address, pincode, phone, ts):
         svc = gd.build("sheets","v4",credentials=creds,cache_discovery=False)
         svc.spreadsheets().values().append(
             spreadsheetId=GOOGLE_SHEET_ID,
-            range="Sheet1!A:H",
+            range="Sheet1!A:I",
             valueInputOption="RAW",
             insertDataOption="INSERT_ROWS",
-            body={"values":[[ts,name,address,pincode,phone,
-                             "Adivasi Hair Oil","₹1499","Pending"]]},
+            body={"values":[[ts, name, city, address, pincode, phone,
+                             "Adivasi Hair Oil", "₹1499", "Pending"]]},
         ).execute()
-        print(f"✅ sheet: {name} | {pincode}")
+        print(f"✅ sheet: {name} | {city} | {pincode}")
     except Exception as e:
         print(f"❌ sheet err: {e}")
+
 
 # ═══════════════════════════════════════════════════
 # TWILIO WEBHOOKS
 # ═══════════════════════════════════════════════════
 async def voice_start(request):
-    """Phase 1 — new call arrives."""
+    """Step 1 — new call arrives. Plays permission greeting."""
     try:    data = await request.post()
     except: data = {}
     sid    = data.get("CallSid","unknown")
@@ -480,7 +600,7 @@ async def voice_start(request):
 
 
 async def voice_respond(request):
-    """Phase 3+4 — user spoke, generate reply."""
+    """Steps 2-7 — user spoke, advance through sales script."""
     try:    data = await request.post()
     except: data = {}
     sid        = data.get("CallSid","unknown")
@@ -491,12 +611,15 @@ async def voice_respond(request):
 
     print(f"🗣  [{sid}] '{speech}' conf={confidence:.2f}")
 
-    # ── silence / timeout ─────────────────────
+    # ── silence / timeout ─────────────────────────
     if no_speech == "1" or (not speech and confidence == 0):
         cs    = _calls.get(sid, new_cs(caller))
-        state = cs.get("state","pitch")
+        state = cs.get("state","permission")
         msg   = {
+            "permission":         _v(_GREET, 1),
+            "hair_problem":       _v(_ASK_HAIR, 1),
             "collecting_name":    _R_NAME,
+            "collecting_city":    _R_CITY,
             "collecting_address": _R_ADDR,
             "collecting_pincode": _R_PIN,
         }.get(state, _SILENCE)
@@ -505,20 +628,14 @@ async def voice_respond(request):
             content_type="application/xml"
         )
 
-    # ── W2: run process() then TTS in sequence
-    #    (process returns text; mk_twiml runs TTS)
-    #    For pitch/GPT turns, GPT is already awaited inside process(),
-    #    then TTS runs in mk_twiml — total = GPT + TTS (sequential but minimal).
-    #    For static turns (name/addr/pin/confirm), process() is instant,
-    #    so total = TTS only (~600-900ms).
     reply, hangup = await process(sid, speech, caller)
-    print(f"🤖 [{_calls.get(sid,{}).get('state','?')}] {reply[:70]}")
+    print(f"🤖 [{_calls.get(sid,{}).get('state','?')}] {reply[:80]}")
 
-    # W1: use pre-warmed ask_name audio if state just moved to collecting_name
+    # W1: use pre-warmed audio for Step 2 (ask hair problem)
     pre = ""
-    cs  = _calls.get(sid,{})
-    if cs.get("state") == "collecting_name" and reply in (_ASK_NAME):
-        pre = _warm.get("name","")
+    cs  = _calls.get(sid, {})
+    if cs.get("state") == "hair_problem":
+        pre = _warm.get("hair","")
 
     tw = await mk_twiml(reply, R(), hangup=hangup, pre_aid=pre)
     return web.Response(text=tw, content_type="application/xml")
