@@ -148,60 +148,68 @@ def new_cs(caller=""):
 # ═══════════════════════════════════════════════════
 # STATIC REPLY VARIANTS  — rotated to prevent repetition
 # ═══════════════════════════════════════════════════
-# Step 1 — curiosity hook greeting (Fix 1: strong first 5 seconds)
+# Step 1 — short curiosity hook (shorter = more natural on Sarvam TTS)
 _GREET = [
-    "Namaste! Main Priya bol rahi hoon Vedacharya se — aajkal bahut log hair fall ki wajah se pareshan hain, isliye short help ke liye call kiya hai, kya 1 minute milega?",
-    "Namaste! Priya bol rahi hoon Vedacharya Adivasi Hair Oil se — ek zaroori baat share karni thi balon ke baare mein, kya abhi baat ho sakti hai?",
-    "Namaste! Main Priya hoon — aajkal hair fall aur baal patale hone ki problem bahut badhti ja rahi hai, is baare mein 1 minute mein kuch kaam ki baat batani thi, kya chalega?",
+    "Namaste! Main Priya bol rahi hoon Vedacharya se. Aajkal bahut logon ke baal jhad rahe hain — iske baare mein kuch kaam ki baat karni thi. Kya 1 minute milega?",
+    "Namaste! Priya bol rahi hoon Vedacharya Adivasi Hair Oil se. Baalon ki ek zaroori baat share karni thi — kya abhi baat ho sakti hai?",
+    "Namaste! Main Priya hoon Vedacharya se. Hair fall aur kamzor baalon ke baare mein kuch batana tha — kya 1 minute available hai?",
 ]
-# Step 2 — ask hair problem
+# Step 2 — ask hair problem (short, conversational)
 _ASK_HAIR = [
-    "Kya aapko hair fall, dandruff, safed baal ya hair growth slow hone ki koi problem ho rahi hai?",
-    "Kya balon se related koi problem hai aapko — jaise hair fall, dandruff ya baal patale ho rahe hain?",
-    "Balon mein koi pareshani hai kya — jaise baal jhadna, dandruff ya naye baal nahi ug rahe?",
+    "Kya aapko hair fall, dandruff ya baal patale hone ki koi problem ho rahi hai?",
+    "Baalon mein koi pareshani hai — jaise baal jhadna, dandruff ya growth ruk gayi hai?",
+    "Kya baalon se related koi takleef hai aapko?",
 ]
-# Step 3A — user has NO hair problem (Fix 2: trust line added)
+# Step 3A — NO problem (short, warm, natural Hindi)
 _NO_PROBLEM = [
-    "Bahut achi baat hai! Waise aajkal pollution aur stress ki wajah se hair fall kabhi bhi start ho sakta hai — aur 418 se zyaada log pehle se hi yeh oil use karke apne baalon ko strong rakh rahe hain.",
-    "Samajh sakti hoon. Lekin aajkal jinhe bhi problem nahi thi, unhe bhi achanak hair fall shuru ho gaya — pollution, stress, paani sab affect karta hai. Prevention ke liye yeh 100% herbal oil bahut kaam aata hai.",
+    "Bahut achhi baat hai. Waise aajkal pollution aur stress ki wajah se hair fall kabhi bhi shuru ho sakta hai. 418 log pehle se hi yeh oil use karke apne baalon ko strong rakh rahe hain.",
+    "Theek hai. Lekin aajkal jinhe problem nahi thi, unhe bhi achanak baal jhadne lage — paani, dhool, tension sab ka asar hota hai. Prevention ke liye yeh herbal oil bahut kaam aata hai.",
 ]
-# Step 3B — user HAS a hair problem (Fix 3: emotional trigger added)
+# Step 3B — YES problem (short emotional, split into 2 clear sentences)
 _YES_PROBLEM = [
-    "Bilkul samajh sakti hoon — hair fall agar time pe control na ho to baal dheere dheere patale aur kam hote jate hain. Vedacharya Adivasi Hair Oil mein 108 natural jadibutiyan hain jo scalp ko nourish karti hain aur hair growth dobara shuru karti hain.",
-    "Haan, aajkal yeh problem bahut common ho gayi hai — lekin jitna jaldi solution lete hain utna better hota hai. Is oil mein bhringraj aur amla hain jo baal jhadna rokta hai aur naye baal ugata hai. 418 customers ko already result mila hai.",
+    "Samajh sakti hoon — agar time pe dhyan na dein to baal aur kam hote jaate hain. Vedacharya Adivasi Hair Oil mein 108 jadibutiyan hain jo balon ko andar se majboot karti hain aur naye baal ugaati hain.",
+    "Bilkul sahi kaha — jitna jaldi shuru karein utna better. Is oil mein bhringraj aur amla hain jo baal jhadna rokta hai. 418 log pehle se use karke achha result le rahe hain.",
 ]
-# Step 4 — DIRECT close (Fix 4: no more "agar aap chahein")
+# Step 4 — direct close (short, confident)
 _PUSH = [
     "Main aapka order abhi confirm kar deti hoon — naam bataiye.",
-    "Abhi limited stock mein special offer chal raha hai — naam bataiye, order place karte hain.",  # Fix 5: urgency
-    "Delivery bilkul free zone mein aati hai aapke paas — bas naam bataiye.",
+    "Limited offer chal raha hai abhi — naam bataiye, order kar dete hain.",
+    "Bas naam aur pata chahiye — order ho jaayega.",
 ]
-# Urgency line injected into pitch after YES/NO problem detection (Fix 5)
-_URGENCY = "Aur yeh offer limited stock par chal raha hai — aaj confirm karna better rahega."
+# Urgency — short, punchy
+_URGENCY = "Yeh offer limited time ka hai — aaj hi confirm kar lein."
+
+# ── PRICE ANSWER (instant static — no GPT needed) ──────────────────
+# Triggered when user asks cost/price/rate/daam in pitch state
+_PRICE_ANSWER = [
+    "Iska daam 1499 rupaye hai — MRP 2799 tha, matlab 46 percent ki choot mil rahi hai. Cash on Delivery bhi hai, ghar par aane par dena hoga.",
+    "Sirf 1499 rupaye mein milta hai — 500ml ki poori bottle. COD available hai, pehle product dekhein phir paise dein.",
+    "Keemat 1499 rupaye hai — aur 7 din ki return policy bhi hai. Koi risk nahi bilkul.",
+]
 # Step 6 — collect order details (Fix 6: Name → City → Full Address → Pincode)
 _ASK_NAME = [
-    "Main aapka order abhi confirm kar deti hoon — aapka pura naam bataiye.",
-    "Bilkul! Pehle aapka pura naam kya hai?",
-    "Naam bataiye — order place karte hain.",
+    "Achha — pehle aapka naam bataiye.",
+    "Naam kya hai aapka?",
+    "Theek hai — naam bataiye.",
 ]
 _ASK_CITY = [
-    "Aur aap kis shehar mein hain?",
-    "Aapka shehar kaun sa hai?",
-    "Delivery kis shehar mein karni hai?",
+    "Aur aap kaun se shehar mein hain?",
+    "Shehar ka naam bataiye.",
+    "Delivery kahan karni hai — shehar?",
 ]
 _ASK_ADDR = [
-    "Ghar ka pura pata bataiye — gali number, mohalla ya colony ka naam.",
-    "Puri gali aur colony ka naam bataiye.",
     "Ghar ka pata bataiye — gali aur mohalla.",
+    "Gali number ya colony ka naam bataiye.",
+    "Pura pata bataiye — gali, mohalla.",
 ]
-_ASK_PIN  = "Aur pincode kya hai?"
-_R_NAME   = "Naam phir se clearly bataiye."
+_ASK_PIN  = "Pincode kya hai?"
+_R_NAME   = "Naam clearly ek baar aur bataiye."
 _R_CITY   = "Shehar ka naam phir se bataiye."
-_R_ADDR   = "Pata thoda detail mein bataiye — gali aur mohalla."
+_R_ADDR   = "Pata thoda detail mein bataiye."
 _R_PIN    = "6 ankon ka pincode phir se bataiye."
-_SILENCE  = "Aapki baat sunai nahi di — dobara bolein."
-_OFFTOPIC = "Main sirf Adivasi Hair Oil ke baare mein bata sakti hoon — kya mangwana hai?"
-_DONE     = "Aapka order ho chuka hai. Shukriya!"
+_SILENCE  = "Sunai nahi diya — dobara bolein please."
+_OFFTOPIC = "Main sirf Adivasi Hair Oil ke baare mein bata sakti hoon."
+_DONE     = "Shukriya! Aapka order ho gaya."
 
 def _v(lst, n): return lst[n % len(lst)]
 
@@ -240,7 +248,7 @@ async def tts(text: str) -> bytes | None:
                 "target_language_code": "hi-IN",
                 "speaker":              "anushka",   # clear female voice
                 "pitch":                0,
-                "pace":                 1.1,          # natural, not robotic [W_VOICE]
+                "pace":                 1.0,          # natural Hindi pace — not rushed
                 "loudness":             1.5,
                 "speech_sample_rate":   8000,         # phone-grade [W_VOICE]
                 "enable_preprocessing": True,
@@ -380,9 +388,17 @@ def is_buy(t):
             any(k in tl for k in ["order","mangwa","buy","chahiye","bhejo","lelo"]))
 
 def is_no(t):   return any(w in t.lower() for w in _NO)
-def is_price(t):return any(w in t.lower() for w in _PRICE)
 def is_off(t):  return any(re.search(p, t.lower()) for p in _OFF)
 def get_pin(t): m = re.search(r"\b\d{6}\b", t); return m.group() if m else ""
+
+# Price question detector — catches all Indian ways of asking price
+_PRICE_Q = {
+    "price","cost","daam","keemat","kitna","rate","paisa","paise","1499","rupay",
+    "rupaye","kitne ka","mehnga","sasta","offer","discount","kitna hai","kya hai price",
+    "price kya","cost kya","daam kya","kitne mein","kitnay","charge",
+    "कीमत","दाम","कितना","रुपए","रुपये","महंगा","सस्ता","ऑफर",
+}
+def is_price_q(t): return any(w in t.lower() for w in _PRICE_Q)
 
 # ═══════════════════════════════════════════════════
 # STATE MACHINE
@@ -415,6 +431,28 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool]:
     if state == "done":
         return _DONE, True
 
+    # ── hello / acknowledgement handler ───────────
+    # User says hello, haan, ji, yes, sun raha hoon — just re-ask the current question
+    _HELLO = {"hello","helo","hlo","hi","haan ji","ji","sun raha","sun rahi","haan",
+              "bol","bolo","boliye","ha","han","hmm","hm","are","arre","हेलो","जी",
+              "हाँ जी","बोलिए","सुन रहा","सुन रही"}
+    tl_stripped = t.lower().strip("?!., ")
+    if tl_stripped in _HELLO or (len(t.split()) <= 2 and tl_stripped in _HELLO):
+        # Re-ask whatever the current step needs — no GPT, instant
+        _reask = {
+            "permission":         _v(_GREET, cs["turn"]),
+            "hair_problem":       _v(_ASK_HAIR, cs["turn"]),
+            "pitch":              "Haan ji — kya aap Vedacharya Adivasi Hair Oil mein interest rakhte hain?",
+            "collecting_name":    _R_NAME,
+            "collecting_city":    _R_CITY,
+            "collecting_address": _R_ADDR,
+            "collecting_pincode": _R_PIN,
+            "confirming":         "Haan ji — kya dی gayi jaankari sahi hai?",
+        }
+        reply = _reask.get(state, "Haan ji — batayein, kya help kar sakti hoon?")
+        cs["last_bot"] = reply
+        return reply, False
+
     # ── off-topic guard ───────────────────────────
     if is_off(t):
         return _OFFTOPIC, False
@@ -444,22 +482,18 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool]:
                        "नहीं","ठीक","सब ठीक"])
 
         if no_problem and not has_problem:
-            # Step 3A — F2: trust (418 customers) built in
             cs["hair_problem"] = False
             cs["state"]        = "pitch"
-            body  = _v(_NO_PROBLEM, cs["turn"])
-            # F5: urgency appended
-            full  = body + " " + _URGENCY
+            body = _v(_NO_PROBLEM, cs["turn"])
+            full = body + " " + _URGENCY
             cs["last_bot"] = full
             return full, False
         else:
-            # Step 3B — F3: emotional trigger built in
             cs["hair_problem"] = True
             cs["state"]        = "pitch"
             body   = _v(_YES_PROBLEM, cs["turn"])
-            # usage + price + F5 urgency
-            detail = ("Hafte mein 2-3 baar raat ko halka massage karein, subah mild shampoo se wash karlein. "
-                      "Sirf 1499 rupaye — Cash on Delivery. " + _URGENCY)
+            # Short usage line — one sentence only, not an essay
+            detail = "Hafte mein 2-3 baar raat ko lagaen, subah dholen. Sirf 1499 rupaye — COD available hai."
             full   = body + " " + detail
             cs["last_bot"] = full
             return full, False
@@ -468,10 +502,15 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool]:
     if state == "pitch":
         if is_buy(t):
             cs["state"] = "collecting_name"
-            # F4: direct close — no "agar aap chahein"
             reply = _v(_ASK_NAME, cs["turn"])
             cs["last_bot"] = reply
             return reply, False
+        # ── INSTANT price answer — no GPT needed ──
+        if is_price_q(t):
+            reply = _v(_PRICE_ANSWER, cs["turn"])
+            cs["last_bot"] = reply
+            return reply, False
+        # GPT handles all other questions and objections
         reply = await gpt(cs, t)
         cs["last_bot"] = reply
         return reply, False
@@ -532,9 +571,9 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool]:
             asyncio.create_task(save_order(
                 cs["name"], cs["address"], cs["pincode"], cs["caller"], cs.get("city","")
             ))
-            reply = (f"Shukriya {cs['name']} ji! Aapka order successfully confirm ho gaya. "
-                     f"5 se 7 din mein {cs['city']} mein delivery milegi — "
-                     f"delivery par sirf 1499 rupaye dene honge. Have a nice day!")
+            reply = (f"Bahut shukriya {cs['name']} ji! Order ho gaya. "
+                     f"5 se 7 din mein {cs['city']} mein delivery aayegi. "
+                     f"Delivery par 1499 rupaye dene honge. Have a nice day!")
             cs["last_bot"] = reply
             return reply, True
         if is_no(t):
