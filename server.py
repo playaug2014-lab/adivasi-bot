@@ -65,36 +65,41 @@ async def http() -> aiohttp.ClientSession:
 # PRODUCT KNOWLEDGE  (hardcoded — zero lookup latency)
 # ═══════════════════════════════════════════════════
 _KB = """
-वेदाचार्य आदिवासी हर्बल हेयर ऑयल — ₹1499 (MRP ₹2799, 46% छूट) — 500ml
-सामग्री: भृंगराज, आंवला, ब्राह्मी, शंखपुष्पी, नीम, जटामांसी + 108 प्राकृतिक जड़ी-बूटियाँ
-फायदे: बाल झड़ना बंद · नए बाल उगना · डैंड्रफ खत्म · जड़ें मजबूत · चमक · घनापन
-उपयोग: हफ्ते में 2-3 बार रात को scalp पर हल्की massage करें → सुबह mild shampoo से wash करें
-परिणाम: 30 दिन में फर्क | डिलीवरी: 5-7 दिन, COD available, 7-दिन return policy | 418 संतुष्ट ग्राहक
+वेदाचार्य आदिवासी हर्बल हेयर ऑयल — ₹1499 (MRP ₹2799, 46% छूट) — 500 मिलीलीटर
+सामग्री: भृंगराज, आंवला, ब्राह्मी, शंखपुष्पी, नीम, जटामांसी और 108 प्राकृतिक जड़ी-बूटियाँ
+फायदे: बाल झड़ना बंद · नए बाल उगना · रूसी खत्म · जड़ें मज़बूत · चमक · घनापन
+उपयोग: हफ्ते में 2-3 बार रात को सिर की त्वचा पर हल्की मालिश करें, सुबह हल्के शैंपू से धो लें
+परिणाम: 30 दिन में असर दिखता है
+डिलीवरी: 5 से 7 दिन में, कैश ऑन डिलीवरी उपलब्ध, 7 दिन की वापसी नीति
+ग्राहक: 418 से ज़्यादा संतुष्ट ग्राहक
 
 सामान्य सवाल:
-- हफ्ते में 2-3 बार काफी | रात भर रखें — सबसे ज़्यादा असर होता है
-- नीम+आंवला डैंड्रफ जड़ से खत्म करते हैं | भृंगराज follicles सक्रिय करता है → गंजेपन में भी उगाता है
-- हल्का गुनगुना करके लगाएं → असर दोगुना | बच्चों (5+), पुरुष और महिला दोनों के लिए
-- आंवला+ब्राह्मी बालों को समय से पहले सफेद होने से रोकते हैं
-- प्राकृतिक conditioner की तरह काम करता है | expired तेल कभी use न करें
+- हफ्ते में 2-3 बार काफी है — रात भर रखें, सबसे ज़्यादा असर होता है
+- नीम और आंवला रूसी को जड़ से खत्म करते हैं
+- भृंगराज बालों के रोम सक्रिय करता है — गंजेपन में भी नए बाल उगाता है
+- हल्का गुनगुना करके लगाएं — असर दोगुना होता है
+- बच्चों (5 साल से ऊपर), पुरुष और महिला — सभी के लिए उपयुक्त
+- आंवला और ब्राह्मी बालों को समय से पहले सफेद होने से रोकते हैं
+- प्राकृतिक कंडीशनर की तरह काम करता है
+- समय सीमा पार तेल कभी न लगाएं
 
-अगर user को कोई hair problem नहीं (no problem case):
-- "आजकल pollution aur stress ki wajah se hair problems kabhi bhi start ho sakti hain."
-- "Prevention ke liye yeh 100% herbal oil ek bahut acha option hai — baalon ko strong aur healthy banata hai."
-- "Future hair problems se bachne ke liye abhi se use karna sahi rahega."
+अगर ग्राहक को कोई समस्या नहीं है:
+- आजकल प्रदूषण और तनाव की वजह से बाल झड़ना कभी भी शुरू हो सकता है
+- रोकथाम के लिए यह 100% प्राकृतिक तेल एक बेहतरीन विकल्प है — बालों को मज़बूत और स्वस्थ रखता है
+- भविष्य की समस्याओं से बचने के लिए अभी से शुरू करना सही रहेगा
 
-अगर user को hair problem है (yes problem case):
-- "Samajh sakti hoon, aajkal yeh problem bahut common ho gayi hai."
-- "Yeh oil specially hair fall, dandruff aur hair regrowth ke liye bana hai."
-- "Natural jadibutiyan scalp ko nourish karti hain aur dheere-dheere hair growth improve karti hain."
-- Use: "Hafte me 2-3 baar raat ko halka massage karke lagaen aur subah mild shampoo se wash kar len."
+अगर ग्राहक को समस्या है:
+- समझ सकती हूँ, आजकल यह समस्या बहुत आम हो गई है
+- यह तेल विशेष रूप से बाल झड़ने, रूसी और बाल उगाने के लिए बना है
+- प्राकृतिक जड़ी-बूटियाँ सिर की त्वचा को पोषण देती हैं और धीरे-धीरे बाल घने करती हैं
+- हफ्ते में 2-3 बार रात को हल्की मालिश करें और सुबह हल्के शैंपू से धो लें
 
-कीमत आपत्ति:
-- महंगा/costly: "500ml = 2-3 mahine = sirf 16 rupaye roz. Salon mein ek session 500 se 2000 tak hota hai."
-- सस्ता chahiye: "Saste tel mein sirf mineral oil hota hai — asli jadibutiyan nahi. 418 customers ka result proof hai."
-- Parachute/Patanjali/Dabur: "Woh rozmarra ke tel hain. Yeh 108 herbs ka specially bana medicinal formula hai."
-- पैसे नहीं/baad mein: "COD hai — ghar par aane par 1499 dena hai. 7-din return bhi hai. Koi risk nahi."
-- guarantee: "7-din return policy hai. 418 customers mein se kisi ne wapas nahi kiya — kyunki result milta hai."
+कीमत पर आपत्ति:
+- महंगा लगता है: 500 मिलीलीटर 2 से 3 महीने चलता है यानी सिर्फ 16 रुपये प्रतिदिन। सैलून में एक बार का उपचार 500 से 2000 रुपये होता है।
+- सस्ता चाहिए: सस्ते तेल में केवल खनिज तेल होता है — असली जड़ी-बूटियाँ नहीं। 418 ग्राहकों का परिणाम इसका प्रमाण है।
+- पतंजलि/डाबर/पैराशूट: वे रोज़मर्रा के तेल हैं। यह 108 जड़ी-बूटियों से बना विशेष औषधीय फ़ॉर्मूला है।
+- पैसे नहीं हैं / बाद में: कैश ऑन डिलीवरी है — घर पर उत्पाद आने पर 1499 रुपये दें। 7 दिन की वापसी नीति भी है। कोई जोखिम नहीं।
+- गारंटी: 7 दिन की वापसी नीति है। 418 ग्राहकों में से किसी ने वापस नहीं किया — क्योंकि असर मिलता है।
 """
 
 # ═══════════════════════════════════════════════════
@@ -246,12 +251,12 @@ async def tts(text: str) -> bytes | None:
             json={
                 "inputs":               [text],
                 "target_language_code": "hi-IN",
-                "speaker":              "anushka",   # clear female voice
+                "speaker":              "anushka",
                 "pitch":                0,
-                "pace":                 1.0,          # natural Hindi pace — not rushed
-                "loudness":             1.5,
-                "speech_sample_rate":   8000,         # phone-grade [W_VOICE]
-                "enable_preprocessing": True,
+                "pace":                 0.95,         # slightly slower = clearer Hindi
+                "loudness":             1.2,          # reduced from 1.5 — prevents echo bleedback into user mic
+                "speech_sample_rate":   16000,        # 16kHz — much clearer than 8kHz on modern phones
+                "enable_preprocessing": True,         # Sarvam cleans text before TTS
                 "model":                "bulbul:v1",
             },
             timeout=aiohttp.ClientTimeout(total=8),
@@ -271,10 +276,19 @@ async def audio_serve(request):
     audio = _ac.get(aid)
     if not audio:
         return web.Response(status=404)
-    # keep pre-warmed clips; pop one-time clips after serving
     if not aid.startswith("w_"):
         _ac.pop(aid, None)
-    return web.Response(body=audio, content_type="audio/wav")
+    # Serve with correct WAV headers — Twilio uses these to apply
+    # its own audio processing pipeline (echo cancellation, noise reduction)
+    return web.Response(
+        body=audio,
+        content_type="audio/wav",
+        headers={
+            "Content-Disposition": "inline",
+            "Cache-Control":       "no-cache",
+            "Accept-Ranges":       "bytes",
+        }
+    )
 
 # ═══════════════════════════════════════════════════
 # TWIML BUILDER  — barge-in guaranteed
@@ -283,7 +297,18 @@ def _xe(t): return t.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;"
 
 _GATHER = (
     '<Gather input="speech" action="{a}" method="POST" '
-    'language="hi-IN" speechTimeout="auto" timeout="5" enhanced="true">'   # [W6,W7]
+    'language="hi-IN" '
+    'enhanced="true" '
+    'speechModel="phone_call" '
+    'speechTimeout="auto" '
+    'timeout="8" '
+    'profanityFilter="false" '
+    'hints="हाँ,नहीं,हां,नमस्ते,बाल,तेल,झड़ना,रूसी,डैंड्रफ,नाम,पता,पिनकोड,'
+    'दिल्ली,मुंबई,कोलकाता,चेन्नई,बेंगलुरु,हैदराबाद,पुणे,जयपुर,लखनऊ,सूरत,'
+    'हाँ जी,ठीक है,बिल्कुल,ज़रूर,चाहिए,ऑर्डर,मंगवाना,'
+    'haan,nahi,theek,bilkul,order,pincode,address,price,kitna,'
+    'ek,do,teen,char,paanch,chhe,saat,aath,nau,shunya,'
+    'zero,one,two,three,four,five,six,seven,eight,nine">'
 )
 
 async def mk_twiml(text: str, action: str, hangup=False,
@@ -567,7 +592,7 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool]:
             cs["state"] = "collecting_city"     # F6: go to city next
             reply = _v(_ASK_CITY, cs["turn"])
             cs["last_bot"] = reply
-            return f"{name} ji, " + reply, False
+            return f"{name} जी, " + reply, False
         return _R_NAME, False
 
     # ── STEP 6B: CITY (Fix 6 — new step) ─────────
@@ -705,10 +730,14 @@ async def voice_respond(request):
     confidence = float(data.get("Confidence","0") or "0")
     no_speech  = request.rel_url.query.get("ns","0")
 
-    print(f"🗣  [{sid}] '{speech}' conf={confidence:.2f}")
+    print(f"🗣  [{sid}] '{speech}' conf={confidence:.2f}" +
+          (" ⚠️ LOW" if 0 < confidence < 0.4 else "") +
+          (" 🔇 EMPTY" if not speech else ""))
 
     # ── silence / timeout ─────────────────────────
-    if no_speech == "1" or (not speech and confidence == 0):
+    # Only treat as silence if truly empty — accept even low-confidence speech
+    # Indian phone calls regularly score 0.3-0.5 confidence but are correct
+    if no_speech == "1" or (not speech):
         cs    = _calls.get(sid, new_cs(caller))
         state = cs.get("state","permission")
         msg   = {
