@@ -241,7 +241,7 @@ async def tts(text: str) -> bytes | None:
                 "loudness":             1.1,          # [V4] 1.2 → 1.1: softer = less harsh on phone earpiece
                 "speech_sample_rate":   22050,        # [V5] 16000 → 22050: higher = crisper, less robotic
                 "enable_preprocessing": True,         # [V6] kept: Sarvam cleans numbers/symbols naturally
-                "model":                "bulbul:v1",
+                "model":                "bulbul:v2",
             },
             timeout=aiohttp.ClientTimeout(total=8),
         ) as r:
@@ -695,6 +695,12 @@ async def on_startup(app):
     asyncio.create_task(keepalive())
     asyncio.create_task(prewarm())
 
+async def on_cleanup(app):
+    global _http
+    if _http and not _http.closed:
+        await _http.close()
+        print("✅ aiohttp session closed cleanly")
+
 async def health(request):
     return web.json_response({
         "ok": True,
@@ -710,6 +716,7 @@ async def health(request):
 def create_app():
     app = web.Application(client_max_size=8 * 1024 * 1024)
     app.on_startup.append(on_startup)
+    app.on_cleanup.append(on_cleanup)
     app.router.add_get("/",               health)
     app.router.add_post("/voice/start",   voice_start)
     app.router.add_post("/voice/respond", voice_respond)
