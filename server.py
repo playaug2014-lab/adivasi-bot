@@ -253,7 +253,7 @@ async def tts(text: str) -> bytes | None:
                 "target_language_code": "hi-IN",
                 "speaker":              "anushka",
                 "pitch":                0,
-                "pace":                 0.95,         # slightly slower = clearer Hindi
+                "pace":                 1.0,          # natural human speed
                 "loudness":             1.2,          # reduced from 1.5 — prevents echo bleedback into user mic
                 "speech_sample_rate":   16000,        # 16kHz — much clearer than 8kHz on modern phones
                 "enable_preprocessing": True,         # Sarvam cleans text before TTS
@@ -303,9 +303,9 @@ _GATHER = (
     'speechTimeout="auto" '
     'timeout="8" '
     'profanityFilter="false" '
-    'hints="हाँ,नहीं,हां,नमस्ते,बाल,तेल,झड़ना,रूसी,डैंड्रफ,नाम,पता,पिनकोड,'
+    'hints="हाँ,नहीं,हां,जी,ठीक है,बिल्कुल,चाहिए,ऑर्डर,नाम,पता,पिनकोड,हेलो,जी हाँ,हाँ जी,'
+    'नमस्ते,बाल,तेल,झड़ना,रूसी,मंगवाना,ज़रूर,'
     'दिल्ली,मुंबई,कोलकाता,चेन्नई,बेंगलुरु,हैदराबाद,पुणे,जयपुर,लखनऊ,सूरत,'
-    'हाँ जी,ठीक है,बिल्कुल,ज़रूर,चाहिए,ऑर्डर,मंगवाना,'
     'haan,nahi,theek,bilkul,order,pincode,address,price,kitna,'
     'ek,do,teen,char,paanch,chhe,saat,aath,nau,shunya,'
     'zero,one,two,three,four,five,six,seven,eight,nine">'
@@ -314,13 +314,11 @@ _GATHER = (
 async def mk_twiml(text: str, action: str, hangup=False,
                    pre_aid: str = "") -> str:
     """
-    Builds TwiML.
-    - pre_aid: if set, skips TTS and uses cached audio directly (W1).
-    - Otherwise runs TTS.
-    - <Play>/<Say> always inside <Gather> → barge-in (Phase 2 diagram).
-    - hangup=True → <Hangup> instead of <Gather>.
+    Builds TwiML with natural human-like voice for barge-in.
+    - pre_aid: skips TTS and uses cached audio (W1 — 0 ms on pre-warmed turns).
+    - <Play>/<Say> always inside <Gather> → barge-in active on every turn.
+    - hangup=True → plays final audio then hangs up.
     """
-    # Use pre-warmed audio if available
     if pre_aid and pre_aid in _ac:
         audio = _ac[pre_aid]
         aid = pre_aid
@@ -332,17 +330,18 @@ async def mk_twiml(text: str, action: str, hangup=False,
         else:
             aid = ""
 
+    inner = (f'<Play>{PUBLIC_URL}/audio/{aid}</Play>' if aid
+             else f'<Say language="hi-IN" voice="Polly.Aditi">{_xe(text)}</Say>')
+
     if hangup:
-        inner = (f'<Play>{PUBLIC_URL}/audio/{aid}</Play>' if aid
-                 else f'<Say language="hi-IN" voice="Polly.Aditi">{_xe(text)}</Say>')
         return (f'<?xml version="1.0" encoding="UTF-8"?>'
                 f'<Response>{inner}<Hangup/></Response>')
 
+    # Put Play/Say inside Gather for instant barge-in + natural flow
     go  = _GATHER.format(a=action)
     gc  = '</Gather>'
     red = f'<Redirect method="POST">{action}?ns=1</Redirect>'
-    inner = (f'<Play>{PUBLIC_URL}/audio/{aid}</Play>' if aid
-             else f'<Say language="hi-IN" voice="Polly.Aditi">{_xe(text)}</Say>')
+
     return (f'<?xml version="1.0" encoding="UTF-8"?>'
             f'<Response>{go}{inner}{gc}{red}</Response>')
 
