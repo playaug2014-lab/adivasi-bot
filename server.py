@@ -237,7 +237,7 @@ async def tts(text: str) -> bytes | None:
                 "speaker":              "anushka",
                 "pitch":                0.0,          # float required by Sarvam API
                 "pace":                 1.0,          # natural human speed
-                "loudness":             1.2,
+                "loudness":             1.0,
                 "speech_sample_rate":   16000,
                 "enable_preprocessing": True,
                 "model":                "bulbul:v2",
