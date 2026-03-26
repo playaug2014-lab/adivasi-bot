@@ -63,9 +63,8 @@ _http: aiohttp.ClientSession | None = None
 async def http() -> aiohttp.ClientSession:
     global _http
     if _http is None or _http.closed:
-        _http = aiohttp.ClientSession(
-            connector=aiohttp.TCPConnector(limit=20, ttl_dns_cache=300),
-        )
+        connector = aiohttp.TCPConnector(limit=20, ttl_dns_cache=300, force_close=False)
+        _http = aiohttp.ClientSession(connector=connector)
     return _http
 
 # ═══════════════════════════════════════════════════
@@ -235,7 +234,7 @@ async def tts(text: str) -> bytes | None:
             json={
                 "inputs":               [text],
                 "target_language_code": "hi-IN",
-                "speaker":              "meera",      # [V1] anushka → meera: warmer, natural female voice
+                "speaker":              "anushka",    # reliable Sarvam Hindi female voice
                 "pitch":                2,            # [V3] 0 → 2: slight upward tone = friendly, not flat
                 "pace":                 0.95,         # [V2] 1.0 → 0.95: marginally slower = human cadence
                 "loudness":             1.1,          # [V4] 1.2 → 1.1: softer = less harsh on phone earpiece
