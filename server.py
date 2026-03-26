@@ -232,15 +232,15 @@ async def tts(text: str) -> bytes | None:
             headers={"api-subscription-key": SARVAM_API_KEY,
                      "Content-Type": "application/json"},
             json={
-                "inputs":               [text],
+                     "inputs":               [text],
                 "target_language_code": "hi-IN",
-                "speaker":              "anushka",    # reliable Sarvam Hindi female voice
-                "pitch":                2,            # [V3] 0 → 2: slight upward tone = friendly, not flat
-                "pace":                 0.95,         # [V2] 1.0 → 0.95: marginally slower = human cadence
-                "loudness":             1.1,          # [V4] 1.2 → 1.1: softer = less harsh on phone earpiece
-                "speech_sample_rate":   22050,        # [V5] 16000 → 22050: higher = crisper, less robotic
-                "enable_preprocessing": True,         # [V6] kept: Sarvam cleans numbers/symbols naturally
-                "model":                "bulbul:v2",
+                "speaker":              "anushka",
+                "pitch":                0.0,          # float required by Sarvam API
+                "pace":                 1.0,          # natural human speed
+                "loudness":             1.2,
+                "speech_sample_rate":   16000,
+                "enable_preprocessing": True,
+                "model":                "bulbul:v1",
             },
             timeout=aiohttp.ClientTimeout(total=8),
         ) as r:
