@@ -240,7 +240,7 @@ async def tts(text: str) -> bytes | None:
                 "loudness":             1.2,
                 "speech_sample_rate":   16000,
                 "enable_preprocessing": True,
-                "model":                "bulbul:v1",
+                "model":                "bulbul:v2",
             },
             timeout=aiohttp.ClientTimeout(total=8),
         ) as r:
