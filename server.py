@@ -14,6 +14,12 @@ LATENCY WINS (each one documented):
   W9. Keep-alive ping every 8 min                    → Render never cold-starts
   W10. Audio served from RAM (_audio_cache)          → no disk I/O
 
+TRANSCRIPT LOGGING (NEW):
+  T1. Every user speech + Priya reply → Sheet2 (same Google Sheet, new tab)
+  T2. Logged async via create_task    → zero latency impact on calls
+  T3. Columns: Timestamp | CallSid | Phone | Speaker | State | Message
+  T4. Filter by CallSid to replay any full conversation
+
 VOICE CHANGES (v2):
   V1. Speaker changed: anushka → meera               → warmer, more natural female voice
   V2. pace: 1.0 → 0.95                               → slightly slower = more human, less robotic
@@ -32,6 +38,11 @@ NO FILLER: System prompt bans हम्म, अच्छा, ओह, जी ह�
 Render ENV vars:
   OPENAI_API_KEY  SARVAM_API_KEY  GOOGLE_SHEET_ID
   GOOGLE_CREDS_JSON  PUBLIC_URL  PORT
+
+GOOGLE SHEET SETUP:
+  Sheet1 → Orders (existing, unchanged)
+  Sheet2 → Transcripts (NEW tab — add manually, headers in row 1:
+           Timestamp | CallSid | Phone | Speaker | State | Message)
 """
 
 import os, json, base64, asyncio, datetime, re
@@ -109,7 +120,7 @@ _KB = """
 """
 
 # ═══════════════════════════════════════════════════
-# SYSTEM PROMPT — your 7-step sales script, strict rules
+# SYSTEM PROMPT
 # ═══════════════════════════════════════════════════
 SYSTEM_PROMPT = f"""Tum Priya ho — Teleone ki vinammra, mithboli aur sahayak sales executive ho.
 Tumhara kaam: Vedacharya Adivasi Hair Oil bechna aur order lena.
@@ -181,7 +192,7 @@ _PUSH = [
     "अभी सीमित स्टॉक में विशेष छूट चल रही है — नाम बताइए, ऑर्डर करते हैं।",
     "बस नाम और पता चाहिए — ऑर्डर हो जाएगा।",
 ]
-_URGENCY    = "यह छूट सीमित समय के लिए है — आज ही पुष्टि कर लें।"
+_URGENCY      = "यह छूट सीमित समय के लिए है — आज ही पुष्टि कर लें।"
 _PRICE_ANSWER = [
     "इसकी कीमत 1499 रुपये है — MRP 2799 थी, यानी 46 प्रतिशत की छूट। कैश ऑन डिलीवरी भी उपलब्ध है, घर पर आने पर पैसे देने होंगे।",
     "सिर्फ 1499 रुपये में मिलता है — 500 मिली की पूरी बोतल। पहले उत्पाद देखें, फिर पैसे दें।",
@@ -218,8 +229,7 @@ async def prewarm():
             print(f"⚠️  pre-warm failed [{key}]")
 
 # ═══════════════════════════════════════════════════
-# ✅ SARVAM TTS  — VOICE CHANGES ONLY (V1–V6)
-# Everything else in this function is UNCHANGED.
+# SARVAM TTS
 # ═══════════════════════════════════════════════════
 async def tts(text: str) -> bytes | None:
     if not SARVAM_API_KEY or not text:
@@ -232,11 +242,11 @@ async def tts(text: str) -> bytes | None:
             headers={"api-subscription-key": SARVAM_API_KEY,
                      "Content-Type": "application/json"},
             json={
-                     "inputs":               [text],
+                "inputs":               [text],
                 "target_language_code": "hi-IN",
                 "speaker":              "anushka",
-                "pitch":                0.0,          # float required by Sarvam API
-                "pace":                 1.0,          # natural human speed
+                "pitch":                0.0,
+                "pace":                 1.0,
                 "loudness":             1.0,
                 "speech_sample_rate":   16000,
                 "enable_preprocessing": True,
@@ -272,8 +282,7 @@ async def audio_serve(request):
     )
 
 # ═══════════════════════════════════════════════════
-# TWIML BUILDER — barge-in guaranteed
-# ✅ VOICE CHANGE V7: Polly fallback Aditi → Kajal
+# TWIML BUILDER
 # ═══════════════════════════════════════════════════
 def _xe(t): return t.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
 
@@ -307,7 +316,6 @@ async def mk_twiml(text: str, action: str, hangup=False,
             aid = ""
 
     inner = (f'<Play>{PUBLIC_URL}/audio/{aid}</Play>' if aid
-             # [V7] Polly fallback: Aditi → Kajal (more natural Hindi)
              else f'<Say language="hi-IN" voice="Polly.Kajal">{_xe(text)}</Say>')
 
     if hangup:
@@ -426,7 +434,7 @@ _PRICE_Q = {
 def is_price_q(t): return any(w in t.lower() for w in _PRICE_Q)
 
 # ═══════════════════════════════════════════════════
-# STATE MACHINE — UNCHANGED
+# STATE MACHINE
 # ═══════════════════════════════════════════════════
 async def process(sid: str, text: str, caller: str) -> tuple[str, bool]:
     if sid not in _calls:
@@ -587,7 +595,7 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool]:
     return reply, False
 
 # ═══════════════════════════════════════════════════
-# GOOGLE SHEETS
+# GOOGLE SHEETS — ORDERS (Sheet1, unchanged)
 # ═══════════════════════════════════════════════════
 async def save_order(name, address, pincode, phone, city=""):
     ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -617,9 +625,43 @@ def _sheet_write(name, address, pincode, phone, ts):
                 "Adivasi Hair Oil", "₹1499", "Pending",
             ]]},
         ).execute()
-        print(f"✅ Sheet saved: {name} | {pincode}")
+        print(f"✅ Sheet1 saved: {name} | {pincode}")
     except Exception as e:
-        print(f"❌ Sheet error: {e}")
+        print(f"❌ Sheet1 error: {e}")
+
+# ═══════════════════════════════════════════════════
+# ✅ NEW — TRANSCRIPT LOGGING (Sheet2, same Google Sheet)
+# ═══════════════════════════════════════════════════
+async def log_transcript(sid: str, caller: str, speaker: str, state: str, message: str):
+    """Log every conversation turn to Sheet2 of the same Google Sheet.
+    Called with asyncio.create_task() — zero latency impact on the call.
+    """
+    ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"💬 [{speaker}] {message[:60]}")
+    if not GOOGLE_SHEET_ID or not GOOGLE_CREDS_JSON:
+        return  # gracefully skip if sheet not configured
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _transcript_write, ts, sid, caller, speaker, state, message)
+
+def _transcript_write(ts, sid, caller, speaker, state, message):
+    """Synchronous sheet write — runs in thread executor so it never blocks the event loop."""
+    try:
+        import google.oauth2.service_account as sa
+        import googleapiclient.discovery as gd
+        creds = sa.Credentials.from_service_account_info(
+            json.loads(GOOGLE_CREDS_JSON),
+            scopes=["https://www.googleapis.com/auth/spreadsheets"],
+        )
+        svc = gd.build("sheets", "v4", credentials=creds, cache_discovery=False)
+        svc.spreadsheets().values().append(
+            spreadsheetId=GOOGLE_SHEET_ID,
+            range="Sheet2!A:F",          # ← same Sheet ID, new tab
+            valueInputOption="RAW",
+            insertDataOption="INSERT_ROWS",
+            body={"values": [[ts, sid, caller, speaker, state, message]]},
+        ).execute()
+    except Exception as e:
+        print(f"❌ Sheet2 (transcript) error: {e}")
 
 # ═══════════════════════════════════════════════════
 # TWILIO WEBHOOKS
@@ -631,8 +673,13 @@ async def voice_start(request):
     caller = data.get("From","unknown")
     _calls[sid] = new_cs(caller)
     print(f"📞 {sid} from {caller}")
+
+    # Log Priya's opening greeting to transcript
+    greeting = _GREET[0]
+    asyncio.create_task(log_transcript(sid, caller, "Priya", "permission", greeting))
+
     pre = _warm.get("greet","")
-    tw  = await mk_twiml(_GREET[0], R(), pre_aid=pre)
+    tw  = await mk_twiml(greeting, R(), pre_aid=pre)
     return web.Response(text=tw, content_type="application/xml")
 
 async def voice_respond(request):
@@ -659,13 +706,23 @@ async def voice_respond(request):
             "collecting_address": _R_ADDR,
             "collecting_pincode": _R_PIN,
         }.get(state, _SILENCE)
+        # Log Priya's re-prompt (no user speech to log)
+        asyncio.create_task(log_transcript(sid, caller, "Priya", state, msg))
         return web.Response(
             text=await mk_twiml(msg, R()),
             content_type="application/xml"
         )
 
+    # ── LOG USER SPEECH ──────────────────────────────
+    current_state = _calls.get(sid, {}).get("state", "unknown")
+    asyncio.create_task(log_transcript(sid, caller, "User", current_state, speech))
+
     reply, hangup = await process(sid, speech, caller)
     print(f"🤖 [{_calls.get(sid,{}).get('state','?')}] {reply[:80]}")
+
+    # ── LOG PRIYA'S REPLY ────────────────────────────
+    new_state = _calls.get(sid, {}).get("state", "unknown")
+    asyncio.create_task(log_transcript(sid, caller, "Priya", new_state, reply))
 
     pre = ""
     cs  = _calls.get(sid, {})
@@ -704,12 +761,13 @@ async def health(request):
     return web.json_response({
         "ok": True,
         "product":       "Adivasi Hair Oil",
-        "voice":         "meera",           # updated
+        "voice":         "anushka",
         "sarvam":        bool(SARVAM_API_KEY),
         "sheet":         bool(GOOGLE_SHEET_ID),
         "calls":         len(_calls),
         "cached_audio":  len(_ac),
         "prewarmed":     list(_warm.keys()),
+        "transcript":    "Sheet2 (same Google Sheet)",
     })
 
 def create_app():
@@ -724,9 +782,10 @@ def create_app():
 
 if __name__ == "__main__":
     print("═"*52)
-    print("  🌿 Priya — Adivasi Hair Oil | Voice v2 (Meera)")
+    print("  🌿 Priya — Adivasi Hair Oil | Voice v2")
     print(f"  {PUBLIC_URL}  |  :{PORT}")
-    print(f"  TTS  {'✅ Sarvam (meera)' if SARVAM_API_KEY else '⚠️  Polly.Kajal fallback'}")
-    print(f"  Sheet {'✅ Google Sheet' if GOOGLE_SHEET_ID else '⚠️  logs only'}")
+    print(f"  TTS    {'✅ Sarvam' if SARVAM_API_KEY else '⚠️  Polly.Kajal fallback'}")
+    print(f"  Orders {'✅ Sheet1' if GOOGLE_SHEET_ID else '⚠️  logs only'}")
+    print(f"  Transcript {'✅ Sheet2' if GOOGLE_SHEET_ID else '⚠️  logs only'}")
     print("═"*52)
     web.run_app(create_app(), host="0.0.0.0", port=PORT)
