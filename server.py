@@ -193,6 +193,8 @@ SYSTEM_PROMPT = f"""
 - हमेशा बातचीत को ऑर्डर की तरफ ले जाओ
 - एक ही बात दो बार मत बोलो
 - सीधे और स्पष्ट जवाब दो
+- कभी भी ऑर्डर CONFIRM मत करो — नाम, शहर, पता, पिन कोड के बिना ऑर्डर संभव नहीं
+- अगर ग्राहक हाँ बोले → सिर्फ नाम पूछो: "पहले अपना नाम बताइए।"
 
 ━━━━━━━━━━━━━━━━━━━
 अंतिम लक्ष्य:
@@ -499,6 +501,19 @@ def is_price_q(t):
     if any(w in tl for w in _PRICE_Q): return True
     return any(re.search(p, tl) for p in _PRICE_PATTERNS)
 
+# FIX-GPT-GUARD: detect if GPT hallucinated order confirmation before collecting details
+_CONFIRM_GUARD = [
+    r"ऑर्डर.{0,10}(दर्ज|पुष्टि|हो गया|confirm)",
+    r"(पुष्टि|confirm).{0,15}(कर दिया|हो गई|हो गया)",
+    r"धन्यवाद.{0,20}(ऑर्डर|order)",
+    r"(5-7|5 से 7).{0,10}दिन.{0,10}डिलीवरी",
+    r"शुभ हो",
+]
+
+def gpt_hallucinated_order(reply: str) -> bool:
+    r = reply.lower()
+    return any(re.search(p, r) for p in _CONFIRM_GUARD)
+
 def is_buy(t):
     tl = t.lower().strip()
     # If starts with a negation word, it's not a buy — check first
@@ -653,9 +668,11 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
     if state == "collecting_name":
         if len(t) >= 2 and "?" not in t:
             name = re.sub(
-                r"^(mera naam|mera name|main|i am|naam hai|name is|मेरा नाम|मैं)\s+",
+                r"^(mera naam|mera name|main|i am|naam hai|name is|मेरा नाम है|मेरा नाम|मैं|नाम)\s+",
                 "", t, flags=re.IGNORECASE
-            ).strip().title()
+            ).strip()
+            name = re.sub(r"\s+है\s*$", "", name).strip()   # strip trailing "है"
+            name = re.sub(r"[।!?,.]", "", name).strip().title()  # strip speech artifacts
             cs["name"] = name
             reply = f"{name} जी, " + _v(_ASK_CITY, cs["turn"])
             return static(reply, next_state="collecting_city",
@@ -664,14 +681,16 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
 
     if state == "collecting_city":
         if len(t) >= 2:
-            cs["city"] = t.strip().title()
+            cs["city"] = re.sub(r"[।!?,.]", "", t).strip().title()
             return static(_v(_ASK_ADDR, cs["turn"]), next_state="collecting_address",
                           pre=_warm.get("ask_addr",""))
         return static(_R_CITY)
 
     if state == "collecting_address":
         if len(t) >= 5:
-            cs["address"] = f"{t.strip()}, {cs['city']}"
+            # Clean speech-to-text punctuation artifacts from address
+            clean_addr = re.sub(r"[।!]", "", t).strip().rstrip(",").strip()
+            cs["address"] = f"{clean_addr}, {cs['city']}"
             return static(_ASK_PIN, next_state="collecting_pincode",
                           pre=_warm.get("ask_pin",""))
         return static(_R_ADDR)
@@ -779,7 +798,7 @@ def _batch_transcript_write(ts, sid, caller, state,
 # ═══════════════════════════════════════════════════
 async def health(request):
     return web.json_response({
-        "ok": True, "product": "Adivasi Hair Oil", "version": "v5",
+        "ok": True, "product": "Adivasi Hair Oil", "version": "v6",
         "sarvam": bool(SARVAM_API_KEY), "sheet": bool(GOOGLE_SHEET_ID),
         "calls": len(_calls), "cached_audio": len(_ac),
         "prewarmed": list(_warm.keys()),
@@ -851,6 +870,11 @@ async def voice_respond(request):
 
     if use_gpt:
         gpt_text = await gpt(cs, speech)
+        # FIX-GPT-GUARD: if GPT hallucinated order confirmation, redirect to name collection
+        if cs.get("state") == "pitch" and gpt_hallucinated_order(gpt_text):
+            print(f"🚨 GPT hallucinated order confirm in pitch — intercepted, asking name")
+            gpt_text = _v(_ASK_NAME, cs.get("turn", 0))
+            cs["state"] = "collecting_name"
         cs["last_bot"] = gpt_text
         cs.setdefault("history", []).append({"user": speech, "bot": gpt_text})
         if len(cs["history"]) > 3:
@@ -915,7 +939,7 @@ def create_app():
 # ═══════════════════════════════════════════════════
 if __name__ == "__main__":
     print("═" * 55)
-    print("  🌿 Priya — Adivasi Hair Oil | v5")
+    print("  🌿 Priya — Adivasi Hair Oil | v6")
     print(f"  Binding to 0.0.0.0:{PORT}")
     print(f"  PUBLIC_URL = {PUBLIC_URL}")
     print(f"  TTS        {'✅ Sarvam (retry x3, 12s)' if SARVAM_API_KEY else '⚠️  Polly.Kajal'}")
