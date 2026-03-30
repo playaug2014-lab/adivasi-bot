@@ -710,9 +710,11 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
     if state == "confirming":
         if is_buy(t):
             cs["state"] = "done"
-            asyncio.create_task(save_order(
+            # CRITICAL FIX: await save_order BEFORE returning
+            # asyncio.create_task was fire-and-forget — Hangup killed it before Sheet write
+            await save_order(
                 cs["name"], cs["address"], cs["pincode"], cs["caller"], cs.get("city","")
-            ))
+            )
             reply = (f"बहुत धन्यवाद {cs['name']} जी! ऑर्डर दर्ज हो गया। "
                      f"5-7 दिन में {cs['city']} में डिलीवरी। 1499 रुपये डिलीवरी पर। शुभ हो!")
             cs["last_bot"] = reply
@@ -729,27 +731,39 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
 # ═══════════════════════════════════════════════════
 async def save_order(name, address, pincode, phone, city=""):
     ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"📦 ORDER → {name} | {pincode} | {phone}")
-    if not GOOGLE_SHEET_ID or not GOOGLE_CREDS_JSON:
-        return
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, _sheet_write, name, address, pincode, phone, ts)
+    print(f"📦 ORDER → {name} | {city} | {pincode} | {phone}")
+    # Always write to Google Sheets if configured — this is now awaited so it completes before hangup
+    if GOOGLE_SHEET_ID and GOOGLE_CREDS_JSON:
+        loop = asyncio.get_event_loop()
+        try:
+            await asyncio.wait_for(
+                loop.run_in_executor(None, _sheet_write, name, city, address, pincode, phone, ts),
+                timeout=8.0   # max 8s — never block forever
+            )
+        except asyncio.TimeoutError:
+            print(f"⏱️  Sheet write timeout — order {name}|{pincode} not saved to Sheet1")
+        except Exception as e:
+            print(f"❌ save_order error: {type(e).__name__}: {e}")
+    else:
+        print("⚠️  GOOGLE_SHEET_ID or GOOGLE_CREDS_JSON missing — order not saved to Sheet1")
 
-def _sheet_write(name, address, pincode, phone, ts):
+def _sheet_write(name, city, address, pincode, phone, ts):
     try:
         svc = _build_sheets_service()
-        if not svc: return
+        if not svc:
+            print("❌ Sheet1: Sheets service not available")
+            return
         svc.spreadsheets().values().append(
             spreadsheetId=GOOGLE_SHEET_ID,
-            range="Sheet1!A:H",
+            range="Sheet1!A:I",
             valueInputOption="RAW",
             insertDataOption="INSERT_ROWS",
-            body={"values": [[ts, name, address, pincode, phone,
+            body={"values": [[ts, name, city, address, pincode, phone,
                               "Adivasi Hair Oil", "₹1499", "Pending"]]},
         ).execute()
-        print(f"✅ Sheet1: {name} | {pincode}")
+        print(f"✅ Sheet1 SAVED: {name} | {city} | {pincode}")
     except Exception as e:
-        print(f"❌ Sheet1 error: {e}")
+        print(f"❌ Sheet1 error: {type(e).__name__}: {e}")
 
 # ═══════════════════════════════════════════════════
 # TRANSCRIPT LOGGING — atomic batch write (Sheet2)
