@@ -134,6 +134,9 @@ Agar last reply mein price poochi thi aur user ne kaha:
 - "free" / "sample" → "अभी 1499 में पूरी बोतल — COD पर।"
 - "bhai" / "sun" / "ek minute" → product ke baare mein continue karo
 - "number" / "whatsapp" → "ऑर्डर अभी फ़ोन पर ही ले लेती हूँ — नाम बताइए।"
+- "safed baal" / "सफेद बाल" / "white hair" → "आंवला और ब्राह्मी बालों को समय से पहले सफेद होने से रोकते हैं — 30 दिन में फर्क दिखेगा। नाम बताइए।"
+- "baal jhad" / "बाल झड़" / "thinning" → "भृंगराज बालों के रोम सक्रिय करता है — नए बाल उगाता है। 1499 में COD।"
+- "dandruff" / "rusi" / "रूसी" → "नीम और आंवला रूसी जड़ से खत्म करते हैं — 2-3 हफ्ते में फर्क।"
 
 {_KB}
 
@@ -142,7 +145,7 @@ Niyam:
 2. SIRF 1-2 chhote vaakya. Zyaada KABHI nahi.
 3. Mat bolo: hmmm, achha, oh, ji haan bilkul, dekhiye, toh.
 4. Pichli baat mat dohraao — conversation history dekho.
-5. Har jawab order ki taraf le jao.
+5. Har jawab order ki taraf le jao — answer ke baad naam poochho.
 6. User haan/order/chahiye kahe → turant naam poochho.
 7. Agar user ka sawaal 1-2 words ka hai → context (last_reply) se samjho.""".strip()
 
@@ -565,6 +568,23 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
             return static(ask_name_reply, next_state="collecting_name", pre=pre)
         if is_price_q(t):
             return static(_v(_PRICE_ANSWER, cs["turn"]))
+
+        # Direct answers for common pitch questions — faster than GPT, no TTS failure risk
+        tl = t.lower()
+        if any(w in tl for w in ["safed","सफेद","white hair","safed baal","safed bal"]):
+            return static("आंवला और ब्राह्मी बालों को समय से पहले सफेद होने से रोकते हैं — 30 दिन में फर्क दिखेगा। नाम बताइए।")
+        if any(w in tl for w in ["rusi","dandruff","रूसी","खुजली","itching"]):
+            return static("नीम और आंवला रूसी जड़ से खत्म करते हैं — 2-3 हफ्ते में फर्क। नाम बताइए।")
+        if any(w in tl for w in ["ganjapan","ganja","गंजा","गंजापन","baldness"]):
+            return static("भृंगराज बालों के रोम सक्रिय करता है — गंजेपन में भी नए बाल उगाता है। नाम बताइए।")
+        if any(w in tl for w in ["kitne din","kitne time","result","असर","फर्क","परिणाम"]):
+            return static("30 दिन में असर दिखता है — 418 ग्राहकों ने यही अनुभव किया। नाम बताइए।")
+        if any(w in tl for w in ["side effect","nuksan","नुकसान","खतरा","harm"]):
+            return static("100% प्राकृतिक जड़ी-बूटियाँ — कोई साइड इफेक्ट नहीं। नाम बताइए।")
+        if any(w in tl for w in ["kaise lagaye","kaise use","उपयोग","इस्तेमाल","lagane ka tarika"]):
+            return static("रात को हल्की मालिश करें, सुबह शैंपू से धो लें — हफ्ते में 2-3 बार। नाम बताइए।")
+
+        # All other pitch questions → GPT
         return t, False, True, ""
 
     if state == "collecting_name":
@@ -673,15 +693,17 @@ def _batch_transcript_write(ts, sid, caller, state,
         svc = _build_sheets_service()
         if not svc: return
         rows = []
+        # FIX-SHEET2: seq removed from rows — it was landing in Timestamp column
+        # Sheet2 headers: Timestamp | CallSid | Phone | Speaker | State | Message
         if user_text:
-            rows.append([seq,   ts, sid, caller, "User",  state, user_text])
+            rows.append([ts, sid, caller, "User",  state, user_text])
         if priya_text:
-            rows.append([seq+1, ts, sid, caller, "Priya", state, priya_text])
+            rows.append([ts, sid, caller, "Priya", state, priya_text])
         if not rows:
             return
         svc.spreadsheets().values().append(
             spreadsheetId=GOOGLE_SHEET_ID,
-            range="Sheet2!A:G",
+            range="Sheet2!A:F",
             valueInputOption="RAW",
             insertDataOption="INSERT_ROWS",
             body={"values": rows},
@@ -735,7 +757,8 @@ async def voice_respond(request):
 
     # Low confidence in pitch — ask to repeat
     if speech and confidence > 0 and confidence < 0.5 and len(speech.split()) <= 3:
-        cs    = _calls.get(sid, new_cs(caller))
+        if sid not in _calls: _calls[sid] = new_cs(caller)  # FIX: store, not discard
+        cs    = _calls[sid]
         state = cs.get("state", "permission")
         if state == "pitch":
             print(f"⚠️  Low conf in pitch — clarification")
@@ -744,7 +767,8 @@ async def voice_respond(request):
             return web.Response(text=tw, content_type="application/xml")
 
     if no_speech == "1" or (not speech):
-        cs    = _calls.get(sid, new_cs(caller))
+        if sid not in _calls: _calls[sid] = new_cs(caller)  # FIX: store, not discard
+        cs    = _calls[sid]
         state = cs.get("state", "permission")
         msg   = {
             "permission":         _v(_GREET, 1),
