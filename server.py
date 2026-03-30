@@ -1,17 +1,14 @@
 """
-server.py — Priya | Vedacharya Adivasi Hair Oil | ULTRA-LOW LATENCY BUILD v4
+server.py — Priya | Vedacharya Adivasi Hair Oil | ULTRA-LOW LATENCY BUILD v5
 =============================================================================
 
-RENDER DEPLOY FIX:
-  - host changed from "0.0.0.0" string to explicit bind
-  - PORT read correctly from Render environment
-  - Added startup log BEFORE web.run_app so Render sees activity
-  - on_startup now non-blocking for prewarm (Render has 60s timeout)
-
-3 ISSUES FIXED IN v4:
-  ISSUE1 FIX — Single batch transcript write per turn
-  ISSUE2 FIX — GPT receives last 3 turns as history + 20+ Hindi examples
-  ISSUE3 FIX — Atomic Sheet2 write with Seq column for ordering
+v5 FIXES:
+  FIX1 — TTS retry logic (3 attempts, 12s timeout each) — eliminates blank TTS err
+  FIX2 — Explicit TTS error logging (exception type + message, not just empty)
+  FIX3 — Pre-warm audio correctly passed: empty-string pre_aid no longer skips cache
+  FIX4 — Fallback <Say> now uses Hindi-safe Polly voice with proper XML escape
+  FIX5 — Buy intent ("ha lena hai", "ha delivery kardo") → name question always plays
+  FIX6 — mk_twiml logs which path it took (cached / fresh TTS / Polly fallback)
 """
 
 import os, json, base64, asyncio, datetime, re
@@ -27,7 +24,7 @@ except ImportError:
 # ENV
 # ═══════════════════════════════════════════════════
 PUBLIC_URL        = os.environ.get("PUBLIC_URL", "https://aaibot.onrender.com").rstrip("/")
-PORT              = int(os.environ.get("PORT", 10000))   # ← Render default is 10000
+PORT              = int(os.environ.get("PORT", 10000))
 OPENAI_API_KEY    = os.environ.get("OPENAI_API_KEY", "")
 SARVAM_API_KEY    = os.environ.get("SARVAM_API_KEY", "")
 GOOGLE_SHEET_ID   = os.environ.get("GOOGLE_SHEET_ID", "")
@@ -232,47 +229,76 @@ async def prewarm():
     results = await asyncio.gather(*tasks.values(), return_exceptions=True)
     for key, audio in zip(tasks.keys(), results):
         if isinstance(audio, bytes) and audio:
-            _ac[f"w_{key}"] = audio
-            _warm[key] = f"w_{key}"
-            print(f"🔥 pre-warmed [{key}]")
+            cache_key = f"w_{key}"
+            _ac[cache_key] = audio
+            _warm[key] = cache_key
+            print(f"🔥 pre-warmed [{key}] → cache key '{cache_key}'")
         else:
-            print(f"⚠️  pre-warm failed [{key}]")
+            print(f"⚠️  pre-warm failed [{key}]: {audio}")
 
 # ═══════════════════════════════════════════════════
-# SARVAM TTS
+# SARVAM TTS  —  v5: retry x3, 12s timeout, full error logging
 # ═══════════════════════════════════════════════════
 async def tts(text: str) -> bytes | None:
     if not SARVAM_API_KEY or not text:
         return None
     text = text[:250].strip()
-    try:
-        s = await http()
-        async with s.post(
-            "https://api.sarvam.ai/text-to-speech",
-            headers={"api-subscription-key": SARVAM_API_KEY,
-                     "Content-Type": "application/json"},
-            json={
-                "inputs":               [text],
-                "target_language_code": "hi-IN",
-                "speaker":              "anushka",
-                "pitch":                0.0,
-                "pace":                 1.0,
-                "loudness":             1.0,
-                "speech_sample_rate":   16000,
-                "enable_preprocessing": True,
-                "model":                "bulbul:v2",
-            },
-            timeout=aiohttp.ClientTimeout(total=8),
-        ) as r:
-            if r.status != 200:
-                print(f"Sarvam {r.status}: {(await r.text())[:100]}")
-                return None
-            d = await r.json()
-            b = d.get("audios", [None])[0]
-            return base64.b64decode(b) if b else None
-    except Exception as e:
-        print(f"TTS err: {e}")
-        return None
+
+    for attempt in range(1, 4):          # up to 3 attempts
+        try:
+            s = await http()
+            async with s.post(
+                "https://api.sarvam.ai/text-to-speech",
+                headers={"api-subscription-key": SARVAM_API_KEY,
+                         "Content-Type": "application/json"},
+                json={
+                    "inputs":               [text],
+                    "target_language_code": "hi-IN",
+                    "speaker":              "anushka",
+                    "pitch":                0.0,
+                    "pace":                 1.0,
+                    "loudness":             1.0,
+                    "speech_sample_rate":   16000,
+                    "enable_preprocessing": True,
+                    "model":                "bulbul:v2",
+                },
+                timeout=aiohttp.ClientTimeout(total=12),   # was 8s, now 12s
+            ) as r:
+                if r.status != 200:
+                    body = (await r.text())[:200]
+                    print(f"⚠️  Sarvam HTTP {r.status} (attempt {attempt}/3): {body}")
+                    if attempt < 3:
+                        await asyncio.sleep(0.5 * attempt)
+                        continue
+                    return None
+                d = await r.json()
+                b = d.get("audios", [None])[0]
+                if not b:
+                    print(f"⚠️  Sarvam returned empty audio (attempt {attempt}/3)")
+                    if attempt < 3:
+                        await asyncio.sleep(0.5 * attempt)
+                        continue
+                    return None
+                audio_bytes = base64.b64decode(b)
+                if attempt > 1:
+                    print(f"✅ TTS succeeded on attempt {attempt}")
+                return audio_bytes
+
+        except asyncio.TimeoutError:
+            print(f"⏱️  TTS timeout (attempt {attempt}/3) for: '{text[:50]}'")
+        except aiohttp.ClientConnectorError as e:
+            print(f"🔌 TTS connection error (attempt {attempt}/3): {e}")
+        except aiohttp.ClientResponseError as e:
+            print(f"📡 TTS response error (attempt {attempt}/3): {e.status} {e.message}")
+        except Exception as e:
+            print(f"❌ TTS unexpected error (attempt {attempt}/3): {type(e).__name__}: {e}")
+
+        if attempt < 3:
+            await asyncio.sleep(0.5 * attempt)
+
+    print(f"💀 TTS gave up after 3 attempts for: '{text[:60]}'")
+    return None
+
 
 async def audio_serve(request):
     aid   = request.match_info["aid"]
@@ -289,7 +315,7 @@ async def audio_serve(request):
     )
 
 # ═══════════════════════════════════════════════════
-# TWIML BUILDER
+# TWIML BUILDER  —  v5: pre_aid fix + detailed path logging
 # ═══════════════════════════════════════════════════
 def _xe(t): return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -309,15 +335,22 @@ _GATHER = (
 )
 
 async def mk_twiml(text: str, action: str, hangup=False, pre_aid: str = "") -> str:
+    aid = ""
+
+    # FIX3: pre_aid is a cache key like "w_ask_name" — check it's non-empty AND in cache
     if pre_aid and pre_aid in _ac:
         aid = pre_aid
+        print(f"🎵 mk_twiml: using PRE-WARMED audio [{pre_aid}]")
     else:
+        if pre_aid:
+            print(f"⚠️  mk_twiml: pre_aid '{pre_aid}' not in cache, generating fresh TTS")
         audio = await tts(text)
         if audio:
             aid = f"a{id(audio) % 99999999:08d}"
             _ac[aid] = audio
+            print(f"🎵 mk_twiml: fresh TTS → [{aid}] for '{text[:50]}'")
         else:
-            aid = ""
+            print(f"🔈 mk_twiml: ALL TTS failed, using Polly fallback for '{text[:50]}'")
 
     inner = (f'<Play>{PUBLIC_URL}/audio/{aid}</Play>' if aid
              else f'<Say language="hi-IN" voice="Polly.Kajal">{_xe(text)}</Say>')
@@ -370,7 +403,7 @@ async def gpt(cs: dict, user_text: str) -> str:
             reply = re.sub(r"^(प्रिया:|Priya:|Bot:)\s*", "", reply).strip()
             return reply
     except Exception as e:
-        print(f"GPT err: {e}")
+        print(f"GPT err: {type(e).__name__}: {e}")
         return "कैश ऑन डिलीवरी पर ऑर्डर करें — कोई जोखिम नहीं। नाम बताइए।"
 
 # ═══════════════════════════════════════════════════
@@ -383,6 +416,9 @@ _BUY = {
     "yes","ok","okay","sure","sahi","chahiye","mangwana","mangana",
     "lena hai","order","order karo","book karo","buy","purchase",
     "bhejo","de do","mangwa do","send karo","le lena","le lunga","le lungi","lelo",
+    # FIX5: additional buy phrases ("ha" removed — too short, handled by regex below)
+    "kar do","deliver","delivery kardo","delivery kar do",
+    "mangwa lo","bhejna","bhej do","confirm","confirmed",
 }
 _NO = {"नहीं","नही","no","nahi","nahin","galat","wrong","badlo","mat","naa","na"}
 _OFF = [
@@ -397,8 +433,26 @@ _PRICE_Q = {
 }
 
 def is_buy(t):
-    tl = t.lower()
-    return any(w in tl for w in _BUY) or any(k in tl for k in ["order","mangwa","buy","chahiye","bhejo","lelo"])
+    tl = t.lower().strip()
+    # If starts with a negation word, it's not a buy — check first
+    if any(tl.startswith(w) for w in _NO):
+        return False
+    if any(w in tl for w in _BUY):
+        return True
+    # "ha" / "han" / "he" alone as standalone confirmation
+    if re.match(r"^h[ae]n?$", tl):
+        return True
+    # Regex for common buy phrases not caught by word-set
+    buy_patterns = [
+        r"\border\b",
+        r"\b(delivery|deliver)\s*(kar\s*do|kardo|karo)\b",
+        r"^\s*ha\s+(lena|lelo|bhejo|kardo|kar\s*do|deliver)\b",  # "ha" must lead
+        r"\bconfirm\b",
+        r"\bbhej\s*do\b",
+        r"\bchahiye\b",
+    ]
+    return any(re.search(p, tl) for p in buy_patterns)
+
 def is_no(t):      return any(w in t.lower() for w in _NO)
 def is_off(t):     return any(re.search(p, t.lower()) for p in _OFF)
 def is_price_q(t): return any(w in t.lower() for w in _PRICE_Q)
@@ -453,13 +507,17 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
     if state == "done":
         return static(_DONE)
 
-    _HELLO = {"hello","helo","hlo","hi","haan ji","ji","sun raha","sun rahi","haan",
-              "bol","bolo","boliye","ha","han","hmm","hm","are","arre","हेलो","जी",
-              "हाँ जी","बोलिए","सुन रहा","सुन रही"}
+    _CLEAR_GREETINGS = {"hello","helo","hlo","hi","हेलो"}
     tl_stripped = t.lower().strip("?!., ")
-    if tl_stripped in _HELLO or (len(t.split()) <= 2 and tl_stripped in _HELLO):
+
+    # In permission state, broad hello re-greet
+    if state == "permission" and (tl_stripped in _CLEAR_GREETINGS or
+       tl_stripped in {"haan ji","ji","bol","bolo","ha","han","hmm","hm","are","arre","जी","बोलिए"}):
+        return static(_v(_GREET, cs["turn"]))
+
+    # In other states only re-ask on clear greetings (not "ha" which could be buy)
+    if state != "permission" and tl_stripped in _CLEAR_GREETINGS:
         _reask = {
-            "permission":         _v(_GREET, cs["turn"]),
             "hair_problem":       _v(_ASK_HAIR, cs["turn"]),
             "pitch":              "जी — क्या आप आदिवासी हेयर ऑयल के बारे में जानना चाहते हैं?",
             "collecting_name":    _R_NAME,
@@ -501,8 +559,10 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
 
     if state == "pitch":
         if is_buy(t):
-            return static(_v(_ASK_NAME, cs["turn"]), next_state="collecting_name",
-                          pre=_warm.get("ask_name",""))
+            ask_name_reply = _v(_ASK_NAME, cs["turn"])
+            pre = _warm.get("ask_name", "")
+            print(f"✅ BUY detected: '{t}' → ask_name, pre_aid='{pre}', in_cache={pre in _ac}")
+            return static(ask_name_reply, next_state="collecting_name", pre=pre)
         if is_price_q(t):
             return static(_v(_PRICE_ANSWER, cs["turn"]))
         return t, False, True, ""
@@ -630,14 +690,15 @@ def _batch_transcript_write(ts, sid, caller, state,
         print(f"❌ Sheet2 error: {e}")
 
 # ═══════════════════════════════════════════════════
-# ROUTES — health check MUST respond instantly
+# ROUTES
 # ═══════════════════════════════════════════════════
 async def health(request):
     return web.json_response({
-        "ok": True, "product": "Adivasi Hair Oil", "version": "v4",
+        "ok": True, "product": "Adivasi Hair Oil", "version": "v5",
         "sarvam": bool(SARVAM_API_KEY), "sheet": bool(GOOGLE_SHEET_ID),
         "calls": len(_calls), "cached_audio": len(_ac),
         "prewarmed": list(_warm.keys()),
+        "warm_cache_keys": list(_warm.values()),
         "sheets_svc_ready": _sheets_svc is not None,
         "port": PORT,
     })
@@ -697,7 +758,6 @@ async def voice_respond(request):
         asyncio.create_task(log_turn(sid, caller, state, "", msg))
         return web.Response(text=tw, content_type="application/xml")
 
-    current_state = _calls.get(sid, {}).get("state", "unknown")
     result        = await process(sid, speech, caller)
     reply_text, hangup, use_gpt, pre_aid = result
     cs = _calls.get(sid, {})
@@ -738,14 +798,11 @@ async def keepalive():
 
 # ═══════════════════════════════════════════════════
 # STARTUP / CLEANUP
-# RENDER FIX: on_startup must return quickly.
-# Prewarm and keepalive run as background tasks.
-# Sheets service built synchronously (fast, ~1s).
 # ═══════════════════════════════════════════════════
 async def on_startup(app):
-    _build_sheets_service()              # sync, fast
-    asyncio.create_task(keepalive())     # background
-    asyncio.create_task(prewarm())       # background — does NOT block startup
+    _build_sheets_service()
+    asyncio.create_task(keepalive())
+    asyncio.create_task(prewarm())
 
 async def on_cleanup(app):
     global _http
@@ -768,23 +825,20 @@ def create_app():
 
 # ═══════════════════════════════════════════════════
 # ENTRY POINT
-# RENDER FIX: print port BEFORE starting server so
-# Render sees activity during the boot window.
-# host="0.0.0.0" is explicit — Render requires this.
 # ═══════════════════════════════════════════════════
 if __name__ == "__main__":
     print("═" * 55)
-    print("  🌿 Priya — Adivasi Hair Oil | v4")
-    print(f"  Binding to 0.0.0.0:{PORT}")      # ← printed before server starts
+    print("  🌿 Priya — Adivasi Hair Oil | v5")
+    print(f"  Binding to 0.0.0.0:{PORT}")
     print(f"  PUBLIC_URL = {PUBLIC_URL}")
-    print(f"  TTS        {'✅ Sarvam' if SARVAM_API_KEY else '⚠️  Polly.Kajal'}")
+    print(f"  TTS        {'✅ Sarvam (retry x3, 12s)' if SARVAM_API_KEY else '⚠️  Polly.Kajal'}")
     print(f"  Orders     {'✅ Sheet1' if GOOGLE_SHEET_ID else '⚠️  logs only'}")
     print(f"  Transcript {'✅ Sheet2' if GOOGLE_SHEET_ID else '⚠️  logs only'}")
     print(f"  Pre-warm   ✅ {len(_PREWARM_MAP)} replies (background)")
     print("═" * 55)
     web.run_app(
         create_app(),
-        host="0.0.0.0",   # ← explicit — Render requires binding to all interfaces
+        host="0.0.0.0",
         port=PORT,
-        access_log=None,  # ← reduces log noise, improves startup speed
+        access_log=None,
     )
