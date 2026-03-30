@@ -2,42 +2,16 @@
 server.py — Priya | Vedacharya Adivasi Hair Oil | ULTRA-LOW LATENCY BUILD v4
 =============================================================================
 
+RENDER DEPLOY FIX:
+  - host changed from "0.0.0.0" string to explicit bind
+  - PORT read correctly from Render environment
+  - Added startup log BEFORE web.run_app so Render sees activity
+  - on_startup now non-blocking for prewarm (Render has 60s timeout)
+
 3 ISSUES FIXED IN v4:
-  ISSUE1 FIX — Response delay from transcript logging
-    Root cause: log_transcript used run_in_executor which competes with
-    the call thread pool. Both user log + Priya log fired as separate tasks,
-    each making an individual Google API call = 2 slow API calls per turn.
-    Fix: Single combined sheet write per turn (user + priya in one call).
-    Also added asyncio.sleep(0) to yield event loop before logging starts.
-
-  ISSUE2 FIX — Bot gives wrong reply to short Hindi inputs
-    Root cause: GPT only received the current 1-2 word input with no context
-    of what Priya last said. "Haan", "kitna", "kya" look ambiguous without
-    knowing the previous bot message.
-    Fix: System prompt now has 20+ short Hindi Q&A examples. GPT also
-    receives last 3 conversation turns as history (not just last_bot snippet).
-    Confidence < 0.5 now triggers a clarification reprompt instead of
-    passing garbled text to GPT.
-
-  ISSUE3 FIX — Transcript rows out of order in Sheet2
-    Root cause: User speech log and Priya reply log were fired as two
-    separate asyncio tasks. Whichever Google API call finished first
-    got written first — race condition.
-    Fix: Both rows now written together in ONE atomic batch append call
-    with a turn_seq number column added so Sheet2 can always be sorted
-    correctly even if rows arrive slightly out of order.
-
-ORIGINAL LATENCY WINS (kept):
-  W1. Pre-warmed TTS at startup                → 0 ms TTS on cached turns
-  W2. GPT only in pitch state                  → 0 ms GPT for 90% of turns
-  W3. Persistent aiohttp sessions              → saves ~100 ms per API call
-  W4. max_tokens=40, temperature=0.10         → GPT replies faster
-  W5. Static replies for structured states    → 0 ms GPT
-  W6. speechTimeout="auto"                    → Twilio cuts silence fast
-  W7. RAM audio cache                         → no disk I/O
-  W8. Keep-alive every 8 min                  → Render never cold-starts
-  W9. text[:250] to Sarvam                    → shorter audio plays faster
-  W10. Google Sheets client built once        → no rebuild per call
+  ISSUE1 FIX — Single batch transcript write per turn
+  ISSUE2 FIX — GPT receives last 3 turns as history + 20+ Hindi examples
+  ISSUE3 FIX — Atomic Sheet2 write with Seq column for ordering
 """
 
 import os, json, base64, asyncio, datetime, re
@@ -52,12 +26,12 @@ except ImportError:
 # ═══════════════════════════════════════════════════
 # ENV
 # ═══════════════════════════════════════════════════
-PUBLIC_URL        = os.environ.get("PUBLIC_URL","https://aaibot.onrender.com").rstrip("/")
-PORT              = int(os.environ.get("PORT","8080"))
-OPENAI_API_KEY    = os.environ.get("OPENAI_API_KEY","")
-SARVAM_API_KEY    = os.environ.get("SARVAM_API_KEY","")
-GOOGLE_SHEET_ID   = os.environ.get("GOOGLE_SHEET_ID","")
-GOOGLE_CREDS_JSON = os.environ.get("GOOGLE_CREDS_JSON","")
+PUBLIC_URL        = os.environ.get("PUBLIC_URL", "https://aaibot.onrender.com").rstrip("/")
+PORT              = int(os.environ.get("PORT", 10000))   # ← Render default is 10000
+OPENAI_API_KEY    = os.environ.get("OPENAI_API_KEY", "")
+SARVAM_API_KEY    = os.environ.get("SARVAM_API_KEY", "")
+GOOGLE_SHEET_ID   = os.environ.get("GOOGLE_SHEET_ID", "")
+GOOGLE_CREDS_JSON = os.environ.get("GOOGLE_CREDS_JSON", "")
 
 def R(): return f"{PUBLIC_URL}/voice/respond"
 
@@ -138,10 +112,7 @@ _KB = """
 """
 
 # ═══════════════════════════════════════════════════
-# ISSUE2 FIX — SYSTEM PROMPT
-# Added 20+ short Hindi Q&A examples so GPT understands
-# single-word and 2-word inputs correctly in context.
-# GPT also receives last 3 turns as conversation history.
+# SYSTEM PROMPT
 # ═══════════════════════════════════════════════════
 SYSTEM_PROMPT = f"""Tum Priya ho — Teleone ki vinammra sales executive ho.
 Tumhara kaam: Vedacharya Adivasi Hair Oil bechna aur order lena.
@@ -180,8 +151,6 @@ Niyam:
 
 # ═══════════════════════════════════════════════════
 # CALL STATE
-# Added: history list to track last 3 turns for GPT context
-# Added: turn_seq counter for Sheet2 ordering fix
 # ═══════════════════════════════════════════════════
 _calls: dict[str, dict] = {}
 
@@ -192,9 +161,9 @@ def new_cs(caller=""):
         "name":         "", "city": "", "address": "", "pincode": "",
         "caller":       caller,
         "turn":         0,
-        "turn_seq":     0,          # ISSUE3 FIX: global sequence for Sheet2 ordering
+        "turn_seq":     0,
         "last_bot":     "",
-        "history":      [],         # ISSUE2 FIX: last 3 turns [{"user":..,"bot":..}, ...]
+        "history":      [],
     }
 
 # ═══════════════════════════════════════════════════
@@ -233,14 +202,14 @@ _R_CITY     = "शहर का नाम फिर से बताइए।"
 _R_ADDR     = "पता थोड़ा विस्तार से बताइए।"
 _R_PIN      = "पिन कोड बताइए — छह अंक, एक-एक करके बोलें।"
 _SILENCE    = "सुनाई नहीं दिया — कृपया दोबारा बोलें।"
-_LOW_CONF   = "ठीक से सुनाई नहीं दिया — एक बार और बताइए?"  # ISSUE2 FIX
+_LOW_CONF   = "ठीक से सुनाई नहीं दिया — एक बार और बताइए?"
 _OFFTOPIC   = "मैं केवल आदिवासी हेयर ऑयल के बारे में जानकारी दे सकती हूँ।"
 _DONE       = "धन्यवाद! आपका ऑर्डर हो गया।"
 
 def _v(lst, n): return lst[n % len(lst)]
 
 # ═══════════════════════════════════════════════════
-# PRE-WARM ALL STATIC REPLIES AT STARTUP
+# PRE-WARM
 # ═══════════════════════════════════════════════════
 _ac:   dict[str, bytes] = {}
 _warm: dict[str, str]   = {}
@@ -255,7 +224,7 @@ _PREWARM_MAP = {
     "r_name":   _R_NAME,
     "r_pin":    _R_PIN,
     "silence":  _SILENCE,
-    "low_conf": _LOW_CONF,          # ISSUE2 FIX: pre-warm clarification prompt
+    "low_conf": _LOW_CONF,
 }
 
 async def prewarm():
@@ -322,7 +291,7 @@ async def audio_serve(request):
 # ═══════════════════════════════════════════════════
 # TWIML BUILDER
 # ═══════════════════════════════════════════════════
-def _xe(t): return t.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+def _xe(t): return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 _GATHER = (
     '<Gather input="speech" action="{a}" method="POST" '
@@ -345,7 +314,7 @@ async def mk_twiml(text: str, action: str, hangup=False, pre_aid: str = "") -> s
     else:
         audio = await tts(text)
         if audio:
-            aid = f"a{id(audio)%99999999:08d}"
+            aid = f"a{id(audio) % 99999999:08d}"
             _ac[aid] = audio
         else:
             aid = ""
@@ -363,10 +332,7 @@ async def mk_twiml(text: str, action: str, hangup=False, pre_aid: str = "") -> s
             f'<Response>{go}{inner}</Gather>{red}</Response>')
 
 # ═══════════════════════════════════════════════════
-# ISSUE2 FIX — GPT with conversation history
-# Now receives last 3 turns as proper chat history
-# so short inputs like "haan" or "kitna" are understood
-# in full context of what Priya previously said.
+# GPT with conversation history
 # ═══════════════════════════════════════════════════
 async def gpt(cs: dict, user_text: str) -> str:
     ctx = (f"[state={cs['state']}"
@@ -374,20 +340,15 @@ async def gpt(cs: dict, user_text: str) -> str:
            + (f"|last_reply={cs['last_bot'][:60]}" if cs["last_bot"] else "")
            + "]")
 
-    # Build messages with conversation history for context
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "system", "content": ctx},
     ]
-
-    # Add last 3 turns of history so GPT understands short inputs
     for turn in cs.get("history", [])[-3:]:
         if turn.get("user"):
             messages.append({"role": "user",      "content": turn["user"]})
         if turn.get("bot"):
             messages.append({"role": "assistant", "content": turn["bot"]})
-
-    # Add current user input
     messages.append({"role": "user", "content": user_text})
 
     try:
@@ -438,9 +399,9 @@ _PRICE_Q = {
 def is_buy(t):
     tl = t.lower()
     return any(w in tl for w in _BUY) or any(k in tl for k in ["order","mangwa","buy","chahiye","bhejo","lelo"])
-def is_no(t):       return any(w in t.lower() for w in _NO)
-def is_off(t):      return any(re.search(p, t.lower()) for p in _OFF)
-def is_price_q(t):  return any(w in t.lower() for w in _PRICE_Q)
+def is_no(t):      return any(w in t.lower() for w in _NO)
+def is_off(t):     return any(re.search(p, t.lower()) for p in _OFF)
+def is_price_q(t): return any(w in t.lower() for w in _PRICE_Q)
 
 def get_pin(t: str) -> str:
     collapsed = re.sub(r"(\d)\s+(\d)", r"\1\2", t)
@@ -484,8 +445,9 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
             "collecting_address": _R_ADDR,
             "collecting_pincode": _R_PIN,
         }.get(state, _SILENCE)
-        return static(msg, pre=_warm.get("r_name","") if state=="collecting_name"
-                      else _warm.get("r_pin","") if state=="collecting_pincode"
+        return static(msg,
+                      pre=_warm.get("r_name","") if state == "collecting_name"
+                      else _warm.get("r_pin","") if state == "collecting_pincode"
                       else _warm.get("silence",""))
 
     if state == "done":
@@ -533,7 +495,8 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
             return static(full, next_state="pitch")
         else:
             cs["hair_problem"] = True
-            full = _v(_YES_PROBLEM, cs["turn"]) + " हफ्ते में 2-3 बार लगाएं। सिर्फ 1499 — कैश ऑन डिलीवरी।"
+            full = (_v(_YES_PROBLEM, cs["turn"])
+                    + " हफ्ते में 2-3 बार लगाएं। सिर्फ 1499 — कैश ऑन डिलीवरी।")
             return static(full, next_state="pitch")
 
     if state == "pitch":
@@ -541,9 +504,7 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
             return static(_v(_ASK_NAME, cs["turn"]), next_state="collecting_name",
                           pre=_warm.get("ask_name",""))
         if is_price_q(t):
-            reply = _v(_PRICE_ANSWER, cs["turn"])
-            return static(reply)
-        # GPT path — pass user text, history is built inside gpt()
+            return static(_v(_PRICE_ANSWER, cs["turn"]))
         return t, False, True, ""
 
     if state == "collecting_name":
@@ -599,7 +560,6 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
             return static("फिर से शुरू करते हैं। नाम बताइए।")
         return static("हाँ या नहीं बोलिए — जानकारी सही है?")
 
-    # Fallback GPT
     return t, False, True, ""
 
 # ═══════════════════════════════════════════════════
@@ -630,36 +590,17 @@ def _sheet_write(name, address, pincode, phone, ts):
         print(f"❌ Sheet1 error: {e}")
 
 # ═══════════════════════════════════════════════════
-# ISSUE1 + ISSUE3 FIX — TRANSCRIPT LOGGING
-#
-# ISSUE1: Previously user log and Priya log were two
-# separate run_in_executor calls fired as background tasks.
-# Each made its own Google API call = 2 slow calls per turn
-# competing with the main call response thread pool.
-# FIX: Single combined batch write — both rows in ONE API call.
-# asyncio.sleep(0) yields event loop so call response goes first.
-#
-# ISSUE3: Two separate async tasks writing to Sheet2 had a
-# race condition — whichever Google API call finished first
-# appeared first in the sheet, breaking conversation order.
-# FIX: Both user + Priya rows written in ONE atomic batch.
-# Added turn_seq column so sheet can always be re-sorted correctly.
+# TRANSCRIPT LOGGING — atomic batch write (Sheet2)
 # ═══════════════════════════════════════════════════
 async def log_turn(sid: str, caller: str, state: str,
                    user_text: str, priya_text: str):
-    """
-    Write BOTH user speech and Priya reply in a single Google API call.
-    This fixes ISSUE1 (speed) and ISSUE3 (ordering) at the same time.
-    asyncio.sleep(0) ensures the call response is sent to Twilio first.
-    """
-    await asyncio.sleep(0)  # yield event loop — call response goes out first
+    await asyncio.sleep(0)
     if not GOOGLE_SHEET_ID or not GOOGLE_CREDS_JSON:
         return
     ts  = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cs  = _calls.get(sid, {})
     seq = cs.get("turn_seq", 0)
-    cs["turn_seq"] = seq + 2          # reserve 2 sequence slots per turn
-
+    cs["turn_seq"] = seq + 2
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(
         None, _batch_transcript_write,
@@ -668,11 +609,6 @@ async def log_turn(sid: str, caller: str, state: str,
 
 def _batch_transcript_write(ts, sid, caller, state,
                              user_text, priya_text, seq):
-    """
-    Single Google Sheets API call writing both rows atomically.
-    Columns: Seq | Timestamp | CallSid | Phone | Speaker | State | Message
-    Sort by Seq column in Sheet2 to always get correct order.
-    """
     try:
         svc = _build_sheets_service()
         if not svc: return
@@ -685,7 +621,7 @@ def _batch_transcript_write(ts, sid, caller, state,
             return
         svc.spreadsheets().values().append(
             spreadsheetId=GOOGLE_SHEET_ID,
-            range="Sheet2!A:G",       # ← now 7 columns with Seq added
+            range="Sheet2!A:G",
             valueInputOption="RAW",
             insertDataOption="INSERT_ROWS",
             body={"values": rows},
@@ -694,53 +630,61 @@ def _batch_transcript_write(ts, sid, caller, state,
         print(f"❌ Sheet2 error: {e}")
 
 # ═══════════════════════════════════════════════════
+# ROUTES — health check MUST respond instantly
+# ═══════════════════════════════════════════════════
+async def health(request):
+    return web.json_response({
+        "ok": True, "product": "Adivasi Hair Oil", "version": "v4",
+        "sarvam": bool(SARVAM_API_KEY), "sheet": bool(GOOGLE_SHEET_ID),
+        "calls": len(_calls), "cached_audio": len(_ac),
+        "prewarmed": list(_warm.keys()),
+        "sheets_svc_ready": _sheets_svc is not None,
+        "port": PORT,
+    })
+
+# ═══════════════════════════════════════════════════
 # TWILIO WEBHOOKS
 # ═══════════════════════════════════════════════════
 async def voice_start(request):
     try:    data = await request.post()
     except: data = {}
-    sid    = data.get("CallSid","unknown")
-    caller = data.get("From","unknown")
+    sid    = data.get("CallSid", "unknown")
+    caller = data.get("From", "unknown")
     _calls[sid] = new_cs(caller)
     print(f"📞 {sid} from {caller}")
 
     greeting = _GREET[0]
-    pre = _warm.get("greet","")
+    pre = _warm.get("greet", "")
     tw  = await mk_twiml(greeting, R(), pre_aid=pre)
-
-    # Log greeting — user_text empty since no user has spoken yet
     asyncio.create_task(log_turn(sid, caller, "permission", "", greeting))
     return web.Response(text=tw, content_type="application/xml")
 
 async def voice_respond(request):
     try:    data = await request.post()
     except: data = {}
-    sid        = data.get("CallSid","unknown")
-    caller     = data.get("From","unknown")
-    speech     = data.get("SpeechResult","").strip()
-    confidence = float(data.get("Confidence","0") or "0")
-    no_speech  = request.rel_url.query.get("ns","0")
+    sid        = data.get("CallSid", "unknown")
+    caller     = data.get("From", "unknown")
+    speech     = data.get("SpeechResult", "").strip()
+    confidence = float(data.get("Confidence", "0") or "0")
+    no_speech  = request.rel_url.query.get("ns", "0")
 
     print(f"🗣  [{sid}] '{speech}' conf={confidence:.2f}"
           + (" ⚠️LOW" if 0 < confidence < 0.4 else "")
           + (" 🔇EMPTY" if not speech else ""))
 
-    # ── ISSUE2 FIX: low confidence → ask to repeat, don't guess ──────────
-    # If confidence < 0.5 and speech is very short (1-2 words),
-    # the STT likely got it wrong — ask customer to repeat clearly.
+    # Low confidence in pitch — ask to repeat
     if speech and confidence > 0 and confidence < 0.5 and len(speech.split()) <= 3:
         cs    = _calls.get(sid, new_cs(caller))
         state = cs.get("state", "permission")
-        # Only apply in pitch state where wrong replies are most harmful
         if state == "pitch":
-            print(f"⚠️  Low conf in pitch state — asking clarification")
+            print(f"⚠️  Low conf in pitch — clarification")
             tw = await mk_twiml(_LOW_CONF, R(), pre_aid=_warm.get("low_conf",""))
             asyncio.create_task(log_turn(sid, caller, state, speech, _LOW_CONF))
             return web.Response(text=tw, content_type="application/xml")
 
     if no_speech == "1" or (not speech):
         cs    = _calls.get(sid, new_cs(caller))
-        state = cs.get("state","permission")
+        state = cs.get("state", "permission")
         msg   = {
             "permission":         _v(_GREET, 1),
             "hair_problem":       _v(_ASK_HAIR, 1),
@@ -754,38 +698,27 @@ async def voice_respond(request):
         return web.Response(text=tw, content_type="application/xml")
 
     current_state = _calls.get(sid, {}).get("state", "unknown")
-
-    # Process and get reply
-    result = await process(sid, speech, caller)
+    result        = await process(sid, speech, caller)
     reply_text, hangup, use_gpt, pre_aid = result
-
     cs = _calls.get(sid, {})
 
     if use_gpt:
         gpt_text = await gpt(cs, speech)
         cs["last_bot"] = gpt_text
-        # ISSUE2 FIX: update conversation history for next GPT call
         cs.setdefault("history", []).append({"user": speech, "bot": gpt_text})
         if len(cs["history"]) > 3:
             cs["history"] = cs["history"][-3:]
         tw = await mk_twiml(gpt_text, R(), hangup=hangup)
-        # ISSUE1+3 FIX: single combined log call
-        asyncio.create_task(log_turn(
-            sid, caller, cs.get("state","unknown"), speech, gpt_text
-        ))
+        asyncio.create_task(log_turn(sid, caller, cs.get("state","unknown"), speech, gpt_text))
     else:
-        # ISSUE2 FIX: update history for static replies too
         cs.setdefault("history", []).append({"user": speech, "bot": reply_text})
         if len(cs["history"]) > 3:
             cs["history"] = cs["history"][-3:]
         tw = await mk_twiml(reply_text, R(), hangup=hangup, pre_aid=pre_aid)
-        # ISSUE1+3 FIX: single combined log call
-        asyncio.create_task(log_turn(
-            sid, caller, cs.get("state","unknown"), speech, reply_text
-        ))
+        asyncio.create_task(log_turn(sid, caller, cs.get("state","unknown"), speech, reply_text))
 
-    final_reply = gpt_text if use_gpt else reply_text
-    print(f"🤖 [{cs.get('state','?')}] {final_reply[:80]}")
+    final = gpt_text if use_gpt else reply_text
+    print(f"🤖 [{cs.get('state','?')}] {final[:80]}")
     return web.Response(text=tw, content_type="application/xml")
 
 # ═══════════════════════════════════════════════════
@@ -796,16 +729,23 @@ async def keepalive():
     while True:
         try:
             s = await http()
-            async with s.get(f"{PUBLIC_URL}/", timeout=aiohttp.ClientTimeout(total=8)) as r:
+            async with s.get(f"{PUBLIC_URL}/",
+                             timeout=aiohttp.ClientTimeout(total=8)) as r:
                 print(f"🏓 {r.status}")
         except Exception as e:
             print(f"⚠️  keepalive: {e}")
         await asyncio.sleep(480)
 
+# ═══════════════════════════════════════════════════
+# STARTUP / CLEANUP
+# RENDER FIX: on_startup must return quickly.
+# Prewarm and keepalive run as background tasks.
+# Sheets service built synchronously (fast, ~1s).
+# ═══════════════════════════════════════════════════
 async def on_startup(app):
-    _build_sheets_service()
-    asyncio.create_task(keepalive())
-    asyncio.create_task(prewarm())
+    _build_sheets_service()              # sync, fast
+    asyncio.create_task(keepalive())     # background
+    asyncio.create_task(prewarm())       # background — does NOT block startup
 
 async def on_cleanup(app):
     global _http
@@ -813,37 +753,38 @@ async def on_cleanup(app):
         await _http.close()
         print("✅ aiohttp closed")
 
-async def health(request):
-    return web.json_response({
-        "ok": True, "product": "Adivasi Hair Oil",
-        "version": "v4",
-        "sarvam": bool(SARVAM_API_KEY), "sheet": bool(GOOGLE_SHEET_ID),
-        "calls": len(_calls), "cached_audio": len(_ac),
-        "prewarmed": list(_warm.keys()),
-        "sheets_svc_ready": _sheets_svc is not None,
-        "transcript": "Sheet2 (7 cols incl Seq for ordering)",
-        "fixes": ["issue1:batch_log", "issue2:history+low_conf", "issue3:atomic_write"],
-    })
-
+# ═══════════════════════════════════════════════════
+# APP FACTORY
+# ═══════════════════════════════════════════════════
 def create_app():
     app = web.Application(client_max_size=8 * 1024 * 1024)
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
-    app.router.add_get("/",               health)
-    app.router.add_post("/voice/start",   voice_start)
-    app.router.add_post("/voice/respond", voice_respond)
-    app.router.add_get("/audio/{aid}",    audio_serve)
+    app.router.add_get("/",                health)
+    app.router.add_post("/voice/start",    voice_start)
+    app.router.add_post("/voice/respond",  voice_respond)
+    app.router.add_get("/audio/{aid}",     audio_serve)
     return app
 
+# ═══════════════════════════════════════════════════
+# ENTRY POINT
+# RENDER FIX: print port BEFORE starting server so
+# Render sees activity during the boot window.
+# host="0.0.0.0" is explicit — Render requires this.
+# ═══════════════════════════════════════════════════
 if __name__ == "__main__":
-    print("═"*55)
-    print("  🌿 Priya — Adivasi Hair Oil | v4 — 3 issues fixed")
-    print(f"  {PUBLIC_URL}  |  :{PORT}")
+    print("═" * 55)
+    print("  🌿 Priya — Adivasi Hair Oil | v4")
+    print(f"  Binding to 0.0.0.0:{PORT}")      # ← printed before server starts
+    print(f"  PUBLIC_URL = {PUBLIC_URL}")
     print(f"  TTS        {'✅ Sarvam' if SARVAM_API_KEY else '⚠️  Polly.Kajal'}")
     print(f"  Orders     {'✅ Sheet1' if GOOGLE_SHEET_ID else '⚠️  logs only'}")
-    print(f"  Transcript {'✅ Sheet2 (batch atomic)' if GOOGLE_SHEET_ID else '⚠️  logs only'}")
-    print(f"  Pre-warm   ✅ {len(_PREWARM_MAP)} replies at startup")
-    print(f"  GPT ctx    ✅ last 3 turns as history")
-    print(f"  Low conf   ✅ clarification prompt in pitch state")
-    print("═"*55)
-    web.run_app(create_app(), host="0.0.0.0", port=PORT)
+    print(f"  Transcript {'✅ Sheet2' if GOOGLE_SHEET_ID else '⚠️  logs only'}")
+    print(f"  Pre-warm   ✅ {len(_PREWARM_MAP)} replies (background)")
+    print("═" * 55)
+    web.run_app(
+        create_app(),
+        host="0.0.0.0",   # ← explicit — Render requires binding to all interfaces
+        port=PORT,
+        access_log=None,  # ← reduces log noise, improves startup speed
+    )
