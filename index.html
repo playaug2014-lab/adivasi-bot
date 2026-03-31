@@ -20,7 +20,7 @@
 }
 body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
 
-/* ── LOGIN ── */
+/* LOGIN */
 #login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999}
 .lbox{background:var(--s1);border:1px solid var(--border2);border-radius:var(--r3);padding:44px 40px;width:100%;max-width:400px;position:relative;overflow:hidden}
 .lbox::before{content:'';position:absolute;top:-80px;right:-80px;width:220px;height:220px;background:radial-gradient(circle,rgba(75,142,245,0.07),transparent 70%);pointer-events:none}
@@ -37,7 +37,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 .lbtn:hover{opacity:.88}.lbtn:active{transform:scale(.98)}
 .lerr{display:none;color:var(--red);font-size:11px;font-weight:600;margin-top:10px;text-align:center}
 
-/* ── LAYOUT ── */
+/* LAYOUT */
 #app{display:none}
 .sb{position:fixed;top:0;left:0;width:220px;height:100vh;background:var(--s1);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:22px 14px;z-index:100}
 .sb-logo{display:flex;align-items:center;gap:10px;padding:0 4px 22px;border-bottom:1px solid var(--border);margin-bottom:10px}
@@ -57,7 +57,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 .pg.on{display:block}
 @keyframes fu{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
 
-/* ── TOPBAR ── */
+/* TOPBAR */
 .tb{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
 .tb-l h1{font-size:21px;font-weight:900;letter-spacing:-0.5px}
 .tb-l p{font-size:11px;font-weight:600;color:var(--text3);margin-top:3px}
@@ -73,7 +73,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 .rspin{animation:spin .6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* ── STATS ── */
+/* STATS */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
 .sc{background:var(--s1);border:1px solid var(--border);border-radius:var(--r2);padding:18px 18px 16px;position:relative;overflow:hidden}
 .sc-bar{position:absolute;top:0;left:0;width:100%;height:2px}
@@ -81,13 +81,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 .sc-val{font-size:26px;font-weight:900;letter-spacing:-1px;line-height:1}
 .sc-sub{font-size:11px;font-weight:600;color:var(--text3);margin-top:7px}
 
-/* ── STATUS BAR ── */
-.sbar{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:var(--r);margin-bottom:16px;font-size:11px;font-weight:700;display:none}
-.sbar.ok{background:var(--green2);border:1px solid rgba(30,201,122,.2);color:var(--green)}
-.sbar.err{background:var(--red2);border:1px solid rgba(240,79,79,.2);color:var(--red)}
-.sbar.info{background:var(--blue3);border:1px solid rgba(75,142,245,.2);color:var(--blue)}
+/* STATUS BAR */
+.sbar{align-items:center;gap:8px;padding:9px 14px;border-radius:var(--r);margin-bottom:16px;font-size:11px;font-weight:700;display:none}
+.sbar.ok{background:var(--green2);border:1px solid rgba(30,201,122,.2);color:var(--green);display:flex}
+.sbar.err{background:var(--red2);border:1px solid rgba(240,79,79,.2);color:var(--red);display:flex}
+.sbar.info{background:var(--blue3);border:1px solid rgba(75,142,245,.2);color:var(--blue);display:flex}
 
-/* ── FILTERS ── */
+/* FILTERS */
 .fbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:var(--s1);border:1px solid var(--border);border-radius:var(--r2);padding:13px 16px;margin-bottom:16px}
 .fl{font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);white-space:nowrap}
 .fsep{width:1px;height:20px;background:var(--border2);flex-shrink:0}
@@ -97,7 +97,7 @@ input[type=text].fi{min-width:170px}
 .fclear{padding:7px 11px;background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;height:32px;transition:all .15s}
 .fclear:hover{border-color:var(--border3);color:var(--text2)}
 
-/* ── TABLE ── */
+/* TABLE */
 .tw{background:var(--s1);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
 .th{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
 .th h3{font-size:13px;font-weight:900}
@@ -107,12 +107,12 @@ thead th{text-align:left;padding:9px 14px;font-size:9px;font-weight:800;letter-s
 tbody tr{border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
 tbody tr:last-child{border-bottom:none}
 tbody tr:hover{background:var(--s2)}
-tbody td{padding:11px 14px;font-size:12.5px;font-weight:500;vertical-align:middle}
+tbody td{padding:11px 14px;font-size:12.5px;font-weight:500;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mono{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
 .muted{color:var(--text2);font-size:11px;font-weight:600}
 .lr td{text-align:center;padding:36px;color:var(--text3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em}
 
-/* ── BADGES ── */
+/* BADGES */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:5px;font-size:9px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap}
 .bg{background:var(--green2);color:var(--green);border:1px solid rgba(30,201,122,.2)}
 .ba{background:var(--amber2);color:var(--amber);border:1px solid rgba(245,166,35,.2)}
@@ -122,15 +122,15 @@ tbody td{padding:11px 14px;font-size:12.5px;font-weight:500;vertical-align:middl
 .vb{padding:4px 11px;background:var(--s3);border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-family:var(--font);font-size:10px;font-weight:800;cursor:pointer;transition:all .15s}
 .vb:hover{border-color:var(--blue);color:var(--blue);background:var(--blue3)}
 
-/* ── ORDER CARDS ── */
-.oc{background:var(--s1);border:1px solid var(--border);border-radius:var(--r2);padding:16px 18px;margin-bottom:9px;display:grid;grid-template-columns:2fr 1fr 1.6fr .8fr .9fr;gap:14px;align-items:center;cursor:pointer;transition:all .15s}
+/* ORDER CARDS */
+.oc{background:var(--s1);border:1px solid var(--border);border-radius:var(--r2);padding:16px 18px;margin-bottom:9px;display:grid;grid-template-columns:1.8fr 1.8fr .8fr .8fr .9fr;gap:14px;align-items:center;cursor:pointer;transition:all .15s}
 .oc:hover{border-color:var(--border2);background:var(--s2)}
 .on{font-size:14px;font-weight:900;letter-spacing:-0.2px}
 .op{font-size:10px;font-weight:700;color:var(--text3);margin-top:3px}
 .ofl{font-size:9px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:3px}
 .ofv{font-size:13px;font-weight:700}
 
-/* ── PANEL ── */
+/* PANEL */
 #panel{position:fixed;top:0;right:-530px;width:510px;height:100vh;background:var(--s1);border-left:1px solid var(--border2);z-index:200;display:flex;flex-direction:column;transition:right .3s cubic-bezier(.4,0,.2,1);overflow:hidden}
 #panel.open{right:0}
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:199;display:none}
@@ -143,7 +143,7 @@ tbody td{padding:11px 14px;font-size:12.5px;font-weight:500;vertical-align:middl
 .pi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
 .pi{background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:9px 11px}
 .pil{font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:3px}
-.piv{font-size:12.5px;font-weight:700}
+.piv{font-size:12.5px;font-weight:700;line-height:1.4}
 .pchd{padding:10px 20px 7px;border-bottom:1px solid var(--border);font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);flex-shrink:0}
 .pc{flex:1;overflow-y:auto;padding:12px 20px;display:flex;flex-direction:column;gap:7px}
 .pc::-webkit-scrollbar{width:3px}
@@ -272,7 +272,7 @@ tbody td{padding:11px 14px;font-size:12.5px;font-weight:500;vertical-align:middl
     </div>
     <div class="fbar">
       <span class="fl">Search</span>
-      <input type="text" class="fi" id="of-q" placeholder="Name / phone / pincode / city…" oninput="renderOrders()"/>
+      <input type="text" class="fi" id="of-q" placeholder="Name / phone / pincode / address…" oninput="renderOrders()"/>
       <div class="fsep"></div>
       <span class="fl">From</span><input type="date" class="fi" id="of-fr" onchange="renderOrders()"/>
       <span class="fl">To</span><input type="date" class="fi" id="of-to" onchange="renderOrders()"/>
@@ -299,28 +299,56 @@ tbody td{padding:11px 14px;font-size:12.5px;font-weight:500;vertical-align:middl
 </div><!-- /app -->
 
 <script>
-// ══════════════════════════════════════════
-// CONFIG — Google Sheets direct connection
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════════════
 const API_KEY  = "AIzaSyA_1hoIShR2dsP1s4hHKovDns3smjaLTvE";
 const SHEET_ID = "1Pb9wkYxSb-2OEZYVPFOQSUjPrtEH2pHDoEw5ozgYMcA";
-const SHEET1   = "Sheet1"; // Orders
-const SHEET2   = "Sheet2"; // Transcripts
 
-// Sheet1 columns (row 1 = header, data from row 2):
-// A=Timestamp, B=Name, C=City, D=Address, E=Pincode, F=Phone, G=Product, H=Price, I=Status
+// ════════════════════════════════════════════════════
+// SHEET1 COLUMN MAP (Orders) — NO City column!
+// A=Timestamp B=Name C=Address D=Pincode E=Phone F=Product G=Price H=Status
+// ════════════════════════════════════════════════════
+function parseOrder(r){
+  return {
+    timestamp: g(r,0), // A — Timestamp
+    name:      g(r,1), // B — Name
+    address:   g(r,2), // C — Address  (NO separate City col)
+    pincode:   g(r,3), // D — Pincode
+    phone:     g(r,4), // E — Phone
+    product:   g(r,5), // F — Product
+    price:     g(r,6)||'₹1499', // G — Price
+    status:    g(r,7)||'Pending',// H — Status
+  };
+}
 
-// Sheet2 columns (row 1 = header, data from row 2):
-// A=Timestamp, B=CallSid, C=Phone, D=Speaker, E=State, F=Message
+// ════════════════════════════════════════════════════
+// SHEET2 COLUMN MAP (Transcripts)
+// A=Timestamp B=CallSid C=Phone D=Speaker E=Turn F=State G=Message
+// (7 columns based on your PDF — Turn column between Speaker and State)
+// ════════════════════════════════════════════════════
+function parseTranscript(r){
+  // Handle both 6-col (no Turn) and 7-col (with Turn) formats
+  if(r.length >= 7){
+    return {
+      timestamp: g(r,0), sid: g(r,1), phone: g(r,2),
+      speaker:   g(r,3), state: g(r,5), message: g(r,6),
+    };
+  }
+  return {
+    timestamp: g(r,0), sid: g(r,1), phone: g(r,2),
+    speaker:   g(r,3), state: g(r,4), message: g(r,5),
+  };
+}
 
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 // STATE
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 let _orders=[], _calls=[], _busy=false;
 
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 // AUTH
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 function doLogin(){
   const code=document.getElementById('lc').value.trim().toUpperCase();
   const pass=document.getElementById('lp').value;
@@ -330,7 +358,7 @@ function doLogin(){
     document.getElementById('today-str').textContent=
       new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
     loadAll();
-    setInterval(loadAll, 90000); // auto-refresh every 90s
+    setInterval(loadAll,90000);
   } else {
     document.getElementById('lerr').style.display='block';
     document.getElementById('lp').value='';
@@ -342,28 +370,23 @@ document.getElementById('lc').addEventListener('keydown',e=>{if(e.key==='Enter')
 function doLogout(){
   document.getElementById('login').style.display='flex';
   document.getElementById('app').style.display='none';
-  document.getElementById('lc').value='';
-  document.getElementById('lp').value='';
+  document.getElementById('lc').value='';document.getElementById('lp').value='';
   document.getElementById('lerr').style.display='none';
 }
 
-// ══════════════════════════════════════════
-// GOOGLE SHEETS FETCH
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
+// FETCH FROM GOOGLE SHEETS
+// ════════════════════════════════════════════════════
 async function sheetFetch(sheetName, range){
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheetName+'!'+range)}?key=${API_KEY}`;
   const r=await fetch(url);
-  if(!r.ok){
-    const err=await r.json();
-    throw new Error(err.error?.message||'Sheets API error');
-  }
-  const d=await r.json();
-  return d.values||[];
+  if(!r.ok){ const e=await r.json(); throw new Error(e.error?.message||'Sheets API error'); }
+  return (await r.json()).values||[];
 }
 
-// ══════════════════════════════════════════
-// LOAD ALL DATA
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
+// LOAD ALL
+// ════════════════════════════════════════════════════
 async function loadAll(){
   if(_busy)return;
   _busy=true;
@@ -372,47 +395,34 @@ async function loadAll(){
   showStatus('info','⏳ Loading from Google Sheets…');
 
   try{
-    // Fetch both sheets in parallel
-    const [rows1, rows2] = await Promise.all([
-      sheetFetch(SHEET1, 'A2:I5000'),  // skip header row 1
-      sheetFetch(SHEET2, 'A2:F50000'), // skip header row 1
+    const [rows1,rows2]=await Promise.all([
+      sheetFetch('Sheet1','A2:H5000'),  // skip header — 8 cols
+      sheetFetch('Sheet2','A2:G50000'), // skip header — up to 7 cols
     ]);
 
-    // Parse Sheet1 → Orders
-    _orders = rows1
-      .filter(r=>r&&r.length>0&&(r[0]||r[1]))
-      .map(r=>({
-        timestamp: g(r,0),
-        name:      g(r,1),
-        city:      g(r,2),
-        address:   g(r,3),
-        pincode:   g(r,4),
-        phone:     g(r,5),
-        product:   g(r,6),
-        price:     g(r,7)||'₹1499',
-        status:    g(r,8)||'Pending',
-      }));
+    // ── Parse Sheet1 → Orders ──
+    _orders=rows1
+      .filter(r=>r&&r.length>=2&&(r[0]||r[1]))
+      .map(parseOrder);
 
-    // Parse Sheet2 → group by CallSid to build call list
+    // ── Parse Sheet2 → group by CallSid ──
     const callMap={};
     const convertedPhones=new Set(_orders.map(o=>o.phone).filter(Boolean));
 
-    rows2.filter(r=>r&&r.length>0&&(r[0]||r[1])).forEach(r=>{
-      const ts=g(r,0), sid=g(r,1), phone=g(r,2);
-      const speaker=g(r,3), state=g(r,4), message=g(r,5);
-      if(!sid) return;
-      if(!callMap[sid]){
-        callMap[sid]={
-          sid, phone,
-          first_ts:ts, last_ts:ts,
-          last_state:state,
-          turns:0, messages:[]
+    rows2.filter(r=>r&&r.length>=4&&(r[0]||r[1])).forEach(r=>{
+      const t=parseTranscript(r);
+      if(!t.sid)return;
+      if(!callMap[t.sid]){
+        callMap[t.sid]={
+          sid:t.sid, phone:t.phone,
+          first_ts:t.timestamp, last_ts:t.timestamp,
+          last_state:t.state, turns:0, messages:[]
         };
       }
-      const c=callMap[sid];
-      if(ts>c.last_ts){ c.last_ts=ts; c.last_state=state; }
+      const c=callMap[t.sid];
+      if(t.timestamp>c.last_ts){ c.last_ts=t.timestamp; c.last_state=t.state; }
       c.turns++;
-      c.messages.push({timestamp:ts, speaker, state, message});
+      c.messages.push({timestamp:t.timestamp, speaker:t.speaker, state:t.state, message:t.message});
     });
 
     _calls=Object.values(callMap).map(c=>{
@@ -433,33 +443,29 @@ async function loadAll(){
 
   }catch(e){
     console.error(e);
-    showStatus('err','❌ '+e.message+' — Check API key & Sheet permissions');
+    showStatus('err','❌ '+e.message+' — Check: Sheets API enabled, Sheet is shared as Viewer');
   }
 
-  renderStats();
-  renderRecent();
-  renderCalls();
-  renderOrders();
+  renderStats(); renderRecent(); renderCalls(); renderOrders();
   _busy=false;
   ico&&ico.classList.remove('rspin');
 }
 
-function g(row,i){ return (row[i]||'').toString().trim(); }
+function g(row,i){ return (row&&row[i]!=null?row[i]:'').toString().trim(); }
 
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 // STATUS BAR
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 function showStatus(type,msg){
   const el=document.getElementById('gstatus');
   el.className='sbar '+type;
   el.textContent=msg;
-  el.style.display='flex';
   if(type==='ok') setTimeout(()=>el.style.display='none',4000);
 }
 
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 // STATS
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 function renderStats(){
   const today=new Date().toISOString().slice(0,10);
   const todayCalls=_calls.filter(c=>c.date===today);
@@ -467,29 +473,25 @@ function renderStats(){
   const todayConv=todayCalls.filter(c=>c.status==='Converted');
   const rate=_calls.length?Math.round(converted.length/_calls.length*100):0;
   const rev=_orders.length*1499;
-
-  set('s-calls', _calls.length);
+  set('s-calls',_calls.length);
   set('s-calls-s',`<span style="color:var(--blue);font-weight:800">${todayCalls.length}</span> today`);
-  set('s-ord', converted.length);
+  set('s-ord',converted.length);
   set('s-ord-s',`<span style="color:var(--green);font-weight:800">${todayConv.length}</span> today`);
-  set('s-rate', rate+'%');
+  set('s-rate',rate+'%');
   set('s-rate-s','of all calls converted');
   set('s-rev','₹'+rev.toLocaleString('en-IN'));
   set('s-rev-s',`${_orders.length} orders × ₹1499`);
 }
 function set(id,html){const e=document.getElementById(id);if(e)e.innerHTML=html;}
 
-// ══════════════════════════════════════════
-// RECENT TABLE (overview)
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
+// RECENT TABLE
+// ════════════════════════════════════════════════════
 function renderRecent(){
   const rows=_calls.slice(0,20);
   document.getElementById('ov-ct').textContent=`${rows.length} latest`;
   const tb=document.getElementById('ov-body');
-  if(!rows.length){
-    tb.innerHTML=`<tr class="lr"><td colspan="7">No calls yet — data will appear after first call</td></tr>`;
-    return;
-  }
+  if(!rows.length){tb.innerHTML=`<tr class="lr"><td colspan="7">No calls yet — data appears after first call</td></tr>`;return;}
   tb.innerHTML=rows.map(c=>`<tr onclick="openPanel(${q(c)})">
     <td class="mono" style="color:var(--blue)">${x(c.phone)}</td>
     <td class="muted">${x(c.date)}</td>
@@ -501,9 +503,9 @@ function renderRecent(){
   </tr>`).join('');
 }
 
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 // CALL LOGS
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 function renderCalls(){
   const ph=document.getElementById('f-ph').value.toLowerCase().trim();
   const fr=document.getElementById('f-fr').value;
@@ -518,7 +520,7 @@ function renderCalls(){
   });
   document.getElementById('cl-ct').textContent=`${f.length} of ${_calls.length}`;
   const tb=document.getElementById('cl-body');
-  if(!f.length){tb.innerHTML=`<tr class="lr"><td colspan="7">No results match your filters</td></tr>`;return;}
+  if(!f.length){tb.innerHTML=`<tr class="lr"><td colspan="7">No results match filters</td></tr>`;return;}
   tb.innerHTML=f.map(c=>`<tr onclick="openPanel(${q(c)})">
     <td class="mono" style="color:var(--blue)">${x(c.phone)}</td>
     <td class="muted">${x(c.date)}</td>
@@ -531,19 +533,18 @@ function renderCalls(){
 }
 function clrCalls(){
   ['f-ph','f-fr','f-to'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('f-st').value='';
-  renderCalls();
+  document.getElementById('f-st').value='';renderCalls();
 }
 
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 // ORDERS
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 function renderOrders(){
   const q2=document.getElementById('of-q').value.toLowerCase().trim();
   const fr=document.getElementById('of-fr').value;
   const to=document.getElementById('of-to').value;
   const f=_orders.filter(o=>{
-    const h=(o.name+o.phone+o.pincode+o.city+o.address).toLowerCase();
+    const h=(o.name+o.phone+o.pincode+o.address).toLowerCase();
     if(q2&&!h.includes(q2))return false;
     const d=o.timestamp.slice(0,10);
     if(fr&&d<fr)return false;
@@ -551,42 +552,43 @@ function renderOrders(){
     return true;
   });
   const c=document.getElementById('or-list');
-  if(!f.length){
-    c.innerHTML=`<div class="empty"><div class="empty-ic">📋</div><p>No orders found</p></div>`;
-    return;
-  }
+  if(!f.length){c.innerHTML=`<div class="empty"><div class="empty-ic">📋</div><p>No orders found</p></div>`;return;}
   c.innerHTML=f.map(o=>`<div class="oc" onclick="openOrderPanel('${x(o.phone)}')">
     <div>
-      <div class="on">${x(o.name||'—')}</div>
+      <div class="on">${x(clean(o.name))}</div>
       <div class="op">${x(o.phone)}</div>
     </div>
-    <div><div class="ofl">City</div><div class="ofv">${x(o.city||'—')}</div></div>
-    <div><div class="ofl">Address</div><div class="ofv" style="font-size:12px;color:var(--text2)">${x(o.address||'—')}</div></div>
-    <div><div class="ofl">Pincode</div><div class="ofv" style="font-variant-numeric:tabular-nums">${x(o.pincode||'—')}</div></div>
+    <div>
+      <div class="ofl">Address</div>
+      <div class="ofv" style="font-size:12px;color:var(--text2);white-space:normal;line-height:1.4">${x(clean(o.address))}</div>
+    </div>
+    <div>
+      <div class="ofl">Pincode</div>
+      <div class="ofv" style="font-variant-numeric:tabular-nums">${x(o.pincode)}</div>
+    </div>
+    <div>
+      <div class="ofl">Amount</div>
+      <div class="ofv" style="color:var(--green)">${x(o.price)}</div>
+    </div>
     <div style="text-align:right">
-      ${bdg(o.status||'Pending')}
-      <div style="font-size:10px;font-weight:700;color:var(--text3);margin-top:5px">${x(o.timestamp.slice(0,16).replace('T',' '))}</div>
-      <div style="font-size:12px;font-weight:800;color:var(--green);margin-top:3px">${x(o.price)}</div>
+      ${bdg(o.status)}
+      <div style="font-size:10px;font-weight:700;color:var(--text3);margin-top:6px">${x(o.timestamp.slice(0,16))}</div>
     </div>
   </div>`).join('');
 }
-function clrOrders(){
-  ['of-q','of-fr','of-to'].forEach(id=>document.getElementById(id).value='');
-  renderOrders();
-}
+function clrOrders(){['of-q','of-fr','of-to'].forEach(id=>document.getElementById(id).value='');renderOrders();}
 
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 // PANEL
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 function openOrderPanel(phone){
   const call=_calls.find(c=>c.phone===phone);
+  if(call){openPanel(call);return;}
   const ord=_orders.find(o=>o.phone===phone)||{};
-  if(call){ openPanel(call); return; }
-  // Order exists but no call transcript — show order info only
   document.getElementById('pan-ph').textContent=phone||'—';
   document.getElementById('pan-mt').textContent=`Order · ${ord.timestamp||''}`;
-  document.getElementById('pan-info').innerHTML=buildOrderInfo(ord);
-  document.getElementById('pan-conv').innerHTML=`<div class="nc">No conversation transcript found for this number.</div>`;
+  document.getElementById('pan-info').innerHTML=orderInfoHTML(ord);
+  document.getElementById('pan-conv').innerHTML=`<div class="nc">No call transcript found for this number.</div>`;
   document.getElementById('panel').classList.add('open');
   document.getElementById('ov').classList.add('on');
 }
@@ -594,21 +596,16 @@ function openOrderPanel(phone){
 function openPanel(c){
   if(typeof c==='string'){try{c=JSON.parse(c);}catch(e){return;}}
   const ord=_orders.find(o=>o.phone===c.phone)||{};
-
   document.getElementById('pan-ph').textContent=c.phone||'—';
-  document.getElementById('pan-mt').textContent=
-    `${c.date}  ·  ${c.time}  ·  ${c.turns} turns  ·  ${c.last_state}`;
-
+  document.getElementById('pan-mt').textContent=`${c.date}  ·  ${c.time}  ·  ${c.turns} turns  ·  ${c.last_state}`;
   document.getElementById('pan-info').innerHTML=`
     <div class="pi"><div class="pil">Status</div><div class="piv">${bdg(c.status)}</div></div>
     <div class="pi"><div class="pil">Turns</div><div class="piv">${c.turns}</div></div>
-    ${ord.name?`<div class="pi"><div class="pil">Name</div><div class="piv">${x(ord.name)}</div></div>`:''}
-    ${ord.city?`<div class="pi"><div class="pil">City</div><div class="piv">${x(ord.city)}</div></div>`:''}
-    ${ord.address?`<div class="pi" style="grid-column:1/-1"><div class="pil">Address</div><div class="piv" style="font-size:12px">${x(ord.address)}</div></div>`:''}
+    ${ord.name?`<div class="pi"><div class="pil">Name</div><div class="piv">${x(clean(ord.name))}</div></div>`:''}
     ${ord.pincode?`<div class="pi"><div class="pil">Pincode</div><div class="piv">${x(ord.pincode)}</div></div>`:''}
+    ${ord.address?`<div class="pi" style="grid-column:1/-1"><div class="pil">Address</div><div class="piv" style="font-size:12px;line-height:1.5">${x(clean(ord.address))}</div></div>`:''}
     ${ord.price?`<div class="pi"><div class="pil">Amount</div><div class="piv" style="color:var(--green)">${x(ord.price)}</div></div>`:''}
   `;
-
   const pc=document.getElementById('pan-conv');
   const msgs=c.messages||[];
   if(!msgs.length){
@@ -616,7 +613,7 @@ function openPanel(c){
   } else {
     pc.innerHTML=msgs.map(m=>{
       const bot=m.speaker==='Priya';
-      const ts=m.timestamp.length>=16?m.timestamp.slice(11,16):m.timestamp;
+      const ts=m.timestamp&&m.timestamp.length>=16?m.timestamp.slice(11,16):m.timestamp||'';
       return `<div class="msg ${bot?'bot':'user'}">
         <div class="mw">${bot?'🤖 Priya':'👤 User'}</div>
         <div class="mb">${x(m.message)}</div>
@@ -625,17 +622,15 @@ function openPanel(c){
     }).join('');
     pc.scrollTop=0;
   }
-
   document.getElementById('panel').classList.add('open');
   document.getElementById('ov').classList.add('on');
 }
 
-function buildOrderInfo(o){
+function orderInfoHTML(o){
   return `
-    <div class="pi"><div class="pil">Name</div><div class="piv">${x(o.name||'—')}</div></div>
-    <div class="pi"><div class="pil">City</div><div class="piv">${x(o.city||'—')}</div></div>
-    <div class="pi" style="grid-column:1/-1"><div class="pil">Address</div><div class="piv" style="font-size:12px">${x(o.address||'—')}</div></div>
+    <div class="pi"><div class="pil">Name</div><div class="piv">${x(clean(o.name||'—'))}</div></div>
     <div class="pi"><div class="pil">Pincode</div><div class="piv">${x(o.pincode||'—')}</div></div>
+    <div class="pi" style="grid-column:1/-1"><div class="pil">Address</div><div class="piv" style="font-size:12px;line-height:1.5">${x(clean(o.address||'—'))}</div></div>
     <div class="pi"><div class="pil">Amount</div><div class="piv" style="color:var(--green)">${x(o.price||'₹1499')}</div></div>
   `;
 }
@@ -645,9 +640,9 @@ function closePanel(){
   document.getElementById('ov').classList.remove('on');
 }
 
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 // NAV
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 function goPage(id,el){
   document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
@@ -655,18 +650,20 @@ function goPage(id,el){
   el.classList.add('active');
 }
 
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 // HELPERS
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════
 function x(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 function q(obj){return JSON.stringify(obj).replace(/"/g,'&quot;');}
+
+// Clean speech-to-text artifacts: trailing !, ।, extra spaces
+function clean(s){
+  if(!s)return s;
+  return s.replace(/[!।?]/g,'').replace(/\s+/g,' ').trim();
+}
+
 function bdg(s){
-  const m={
-    'Converted':['bg','Converted'],
-    'In Progress':['ba','In Progress'],
-    'No Answer':['br','No Answer'],
-    'Pending':['bb','Pending'],
-  };
+  const m={'Converted':['bg','Converted'],'In Progress':['ba','In Progress'],'No Answer':['br','No Answer'],'Pending':['bb','Pending']};
   const[c,l]=m[s]||['bb',s||'Unknown'];
   return `<span class="badge ${c}"><span class="bdot"></span>${l}</span>`;
 }
