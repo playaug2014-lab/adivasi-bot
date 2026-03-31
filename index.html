@@ -185,7 +185,6 @@ tbody td{padding:11px 14px;font-size:12.5px;font-weight:500;vertical-align:middl
 <!-- APP -->
 <div id="app">
 <div class="ov" id="ov" onclick="closePanel()"></div>
-
 <div class="sb">
   <div class="sb-logo">
     <div class="sb-icon">📡</div>
@@ -236,7 +235,7 @@ tbody td{padding:11px 14px;font-size:12.5px;font-weight:500;vertical-align:middl
   <!-- CALLS -->
   <div class="pg" id="p-calls">
     <div class="tb">
-      <div class="tb-l"><h1>Call Logs</h1><p>Sheet2 — all conversations</p></div>
+      <div class="tb-l"><h1>Call Logs</h1><p id="cl-sub">Sheet2 — all conversations</p></div>
       <div class="tb-r"><span class="pill p-blue">Sheet2 → Live</span></div>
     </div>
     <div class="fbar">
@@ -280,8 +279,7 @@ tbody td{padding:11px 14px;font-size:12.5px;font-weight:500;vertical-align:middl
     </div>
     <div id="or-list"></div>
   </div>
-
-</div><!-- /main -->
+</div>
 
 <!-- DETAIL PANEL -->
 <div id="panel">
@@ -296,59 +294,84 @@ tbody td{padding:11px 14px;font-size:12.5px;font-weight:500;vertical-align:middl
   <div class="pchd">Conversation Transcript</div>
   <div class="pc" id="pan-conv"><div class="nc">Select a call to view transcript.</div></div>
 </div>
-</div><!-- /app -->
+</div>
 
 <script>
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 // CONFIG
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 const API_KEY  = "AIzaSyA_1hoIShR2dsP1s4hHKovDns3smjaLTvE";
 const SHEET_ID = "1Pb9wkYxSb-2OEZYVPFOQSUjPrtEH2pHDoEw5ozgYMcA";
 
-// ════════════════════════════════════════════════════
-// SHEET1 COLUMN MAP (Orders) — NO City column!
+// ══════════════════════════════════════════
+// SHEET1 COLUMNS (Orders) — NO City column
 // A=Timestamp B=Name C=Address D=Pincode E=Phone F=Product G=Price H=Status
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 function parseOrder(r){
   return {
-    timestamp: g(r,0), // A — Timestamp
-    name:      g(r,1), // B — Name
-    address:   g(r,2), // C — Address  (NO separate City col)
-    pincode:   g(r,3), // D — Pincode
-    phone:     g(r,4), // E — Phone
-    product:   g(r,5), // F — Product
-    price:     g(r,6)||'₹1499', // G — Price
-    status:    g(r,7)||'Pending',// H — Status
+    timestamp: g(r,0),
+    name:      g(r,1),
+    address:   g(r,2),
+    pincode:   g(r,3),
+    phone:     g(r,4),
+    product:   g(r,5),
+    price:     g(r,6)||'₹1499',
+    status:    g(r,7)||'Pending',
   };
 }
 
-// ════════════════════════════════════════════════════
-// SHEET2 COLUMN MAP (Transcripts)
-// A=Timestamp B=CallSid C=Phone D=Speaker E=Turn F=State G=Message
-// (7 columns based on your PDF — Turn column between Speaker and State)
-// ════════════════════════════════════════════════════
-function parseTranscript(r){
-  // Handle both 6-col (no Turn) and 7-col (with Turn) formats
-  if(r.length >= 7){
+// ══════════════════════════════════════════
+// SHEET2 — SMART ROW PARSER
+// Handles TWO formats that exist in your sheet:
+//
+// FORMAT A (old 6-col, rows 2-51):
+//   A=Timestamp  B=CallSid  C=Phone  D=Speaker  E=State  F=Message
+//   Detection: col[0] looks like a date-time string "2026-..."
+//
+// FORMAT B (new 8-col, rows 52+):
+//   A=TurnNum  B=Timestamp  C=CallSid  D=Phone  E=Speaker  F=State  G=Message
+//   Detection: col[0] is a small number (turn counter like 1,2,3...)
+// ══════════════════════════════════════════
+function parseTranscriptRow(r){
+  if(!r || r.length < 4) return null;
+
+  const col0 = g(r,0);
+
+  // FORMAT B detection: col[0] is a turn number (pure digits, small number)
+  // e.g. "1", "2", "3" ... not a date string
+  const isTurnNum = /^\d{1,3}$/.test(col0);
+
+  if(isTurnNum){
+    // FORMAT B: TurnNum | Timestamp | CallSid | Phone | Speaker | State | Message
     return {
-      timestamp: g(r,0), sid: g(r,1), phone: g(r,2),
-      speaker:   g(r,3), state: g(r,5), message: g(r,6),
+      timestamp: g(r,1),
+      sid:       g(r,2),
+      phone:     g(r,3),
+      speaker:   g(r,4),
+      state:     g(r,5),
+      message:   g(r,6),
+    };
+  } else {
+    // FORMAT A: Timestamp | CallSid | Phone | Speaker | State | Message
+    return {
+      timestamp: g(r,0),
+      sid:       g(r,1),
+      phone:     g(r,2),
+      speaker:   g(r,3),
+      state:     g(r,4),
+      message:   g(r,5),
     };
   }
-  return {
-    timestamp: g(r,0), sid: g(r,1), phone: g(r,2),
-    speaker:   g(r,3), state: g(r,4), message: g(r,5),
-  };
 }
 
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 // STATE
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 let _orders=[], _calls=[], _busy=false;
 
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 // AUTH
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 function doLogin(){
   const code=document.getElementById('lc').value.trim().toUpperCase();
   const pass=document.getElementById('lp').value;
@@ -374,9 +397,9 @@ function doLogout(){
   document.getElementById('lerr').style.display='none';
 }
 
-// ════════════════════════════════════════════════════
-// FETCH FROM GOOGLE SHEETS
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
+// GOOGLE SHEETS FETCH
+// ══════════════════════════════════════════
 async function sheetFetch(sheetName, range){
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheetName+'!'+range)}?key=${API_KEY}`;
   const r=await fetch(url);
@@ -384,9 +407,9 @@ async function sheetFetch(sheetName, range){
   return (await r.json()).values||[];
 }
 
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 // LOAD ALL
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 async function loadAll(){
   if(_busy)return;
   _busy=true;
@@ -396,22 +419,29 @@ async function loadAll(){
 
   try{
     const [rows1,rows2]=await Promise.all([
-      sheetFetch('Sheet1','A2:H5000'),  // skip header — 8 cols
-      sheetFetch('Sheet2','A2:G50000'), // skip header — up to 7 cols
+      sheetFetch('Sheet1','A2:H5000'),
+      sheetFetch('Sheet2','A2:G100000'),
     ]);
 
     // ── Parse Sheet1 → Orders ──
-    _orders=rows1
+    _orders = rows1
       .filter(r=>r&&r.length>=2&&(r[0]||r[1]))
       .map(parseOrder);
 
     // ── Parse Sheet2 → group by CallSid ──
     const callMap={};
-    const convertedPhones=new Set(_orders.map(o=>o.phone).filter(Boolean));
+    const convertedPhones = new Set(_orders.map(o=>o.phone).filter(Boolean));
 
-    rows2.filter(r=>r&&r.length>=4&&(r[0]||r[1])).forEach(r=>{
-      const t=parseTranscript(r);
-      if(!t.sid)return;
+    let parsed=0, skipped=0;
+    rows2.forEach(r=>{
+      if(!r||r.length<4){ skipped++; return; }
+      const t = parseTranscriptRow(r);
+      if(!t||!t.sid||!t.timestamp){ skipped++; return; }
+
+      // Skip rows where sid looks like a timestamp (data corruption guard)
+      if(/^\d{4}-\d{2}-\d{2}/.test(t.sid)){ skipped++; return; }
+
+      parsed++;
       if(!callMap[t.sid]){
         callMap[t.sid]={
           sid:t.sid, phone:t.phone,
@@ -422,28 +452,38 @@ async function loadAll(){
       const c=callMap[t.sid];
       if(t.timestamp>c.last_ts){ c.last_ts=t.timestamp; c.last_state=t.state; }
       c.turns++;
-      c.messages.push({timestamp:t.timestamp, speaker:t.speaker, state:t.state, message:t.message});
+      if(t.message){
+        c.messages.push({
+          timestamp: t.timestamp,
+          speaker:   t.speaker,
+          state:     t.state,
+          message:   t.message,
+        });
+      }
     });
 
-    _calls=Object.values(callMap).map(c=>{
+    _calls = Object.values(callMap).map(c=>{
       let status='In Progress';
       if(convertedPhones.has(c.phone)||c.last_state==='done') status='Converted';
       else if(c.turns<=2) status='No Answer';
       return {
         sid:c.sid, phone:c.phone,
-        date:c.first_ts.slice(0,10),
-        time:c.first_ts.slice(11,16),
-        last_state:c.last_state,
-        turns:c.turns, status,
-        messages:c.messages,
+        date: c.first_ts.length>=10 ? c.first_ts.slice(0,10) : '',
+        time: c.first_ts.length>=16 ? c.first_ts.slice(11,16) : '',
+        last_state: c.last_state,
+        turns: c.turns,
+        status,
+        messages: c.messages,
       };
     }).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
 
-    showStatus('ok',`✅ Loaded — ${_calls.length} calls · ${_orders.length} orders`);
+    document.getElementById('cl-sub').textContent=
+      `Sheet2 — ${_calls.length} calls · ${parsed} transcript rows`;
+    showStatus('ok',`✅ ${_calls.length} calls · ${_orders.length} orders loaded`);
 
   }catch(e){
     console.error(e);
-    showStatus('err','❌ '+e.message+' — Check: Sheets API enabled, Sheet is shared as Viewer');
+    showStatus('err','❌ '+e.message+' — Make sure Sheets API is enabled & sheet shared as Viewer');
   }
 
   renderStats(); renderRecent(); renderCalls(); renderOrders();
@@ -453,19 +493,19 @@ async function loadAll(){
 
 function g(row,i){ return (row&&row[i]!=null?row[i]:'').toString().trim(); }
 
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 // STATUS BAR
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 function showStatus(type,msg){
   const el=document.getElementById('gstatus');
   el.className='sbar '+type;
   el.textContent=msg;
-  if(type==='ok') setTimeout(()=>el.style.display='none',4000);
+  if(type==='ok') setTimeout(()=>el.style.display='none',5000);
 }
 
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 // STATS
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 function renderStats(){
   const today=new Date().toISOString().slice(0,10);
   const todayCalls=_calls.filter(c=>c.date===today);
@@ -484,14 +524,14 @@ function renderStats(){
 }
 function set(id,html){const e=document.getElementById(id);if(e)e.innerHTML=html;}
 
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 // RECENT TABLE
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 function renderRecent(){
   const rows=_calls.slice(0,20);
   document.getElementById('ov-ct').textContent=`${rows.length} latest`;
   const tb=document.getElementById('ov-body');
-  if(!rows.length){tb.innerHTML=`<tr class="lr"><td colspan="7">No calls yet — data appears after first call</td></tr>`;return;}
+  if(!rows.length){tb.innerHTML=`<tr class="lr"><td colspan="7">No calls yet</td></tr>`;return;}
   tb.innerHTML=rows.map(c=>`<tr onclick="openPanel(${q(c)})">
     <td class="mono" style="color:var(--blue)">${x(c.phone)}</td>
     <td class="muted">${x(c.date)}</td>
@@ -503,9 +543,9 @@ function renderRecent(){
   </tr>`).join('');
 }
 
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 // CALL LOGS
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 function renderCalls(){
   const ph=document.getElementById('f-ph').value.toLowerCase().trim();
   const fr=document.getElementById('f-fr').value;
@@ -536,9 +576,9 @@ function clrCalls(){
   document.getElementById('f-st').value='';renderCalls();
 }
 
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 // ORDERS
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 function renderOrders(){
   const q2=document.getElementById('of-q').value.toLowerCase().trim();
   const fr=document.getElementById('of-fr').value;
@@ -578,9 +618,9 @@ function renderOrders(){
 }
 function clrOrders(){['of-q','of-fr','of-to'].forEach(id=>document.getElementById(id).value='');renderOrders();}
 
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 // PANEL
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 function openOrderPanel(phone){
   const call=_calls.find(c=>c.phone===phone);
   if(call){openPanel(call);return;}
@@ -597,7 +637,8 @@ function openPanel(c){
   if(typeof c==='string'){try{c=JSON.parse(c);}catch(e){return;}}
   const ord=_orders.find(o=>o.phone===c.phone)||{};
   document.getElementById('pan-ph').textContent=c.phone||'—';
-  document.getElementById('pan-mt').textContent=`${c.date}  ·  ${c.time}  ·  ${c.turns} turns  ·  ${c.last_state}`;
+  document.getElementById('pan-mt').textContent=
+    `${c.date}  ·  ${c.time}  ·  ${c.turns} turns  ·  ${c.last_state}`;
   document.getElementById('pan-info').innerHTML=`
     <div class="pi"><div class="pil">Status</div><div class="piv">${bdg(c.status)}</div></div>
     <div class="pi"><div class="pil">Turns</div><div class="piv">${c.turns}</div></div>
@@ -640,9 +681,9 @@ function closePanel(){
   document.getElementById('ov').classList.remove('on');
 }
 
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 // NAV
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 function goPage(id,el){
   document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
@@ -650,18 +691,12 @@ function goPage(id,el){
   el.classList.add('active');
 }
 
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 // HELPERS
-// ════════════════════════════════════════════════════
+// ══════════════════════════════════════════
 function x(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 function q(obj){return JSON.stringify(obj).replace(/"/g,'&quot;');}
-
-// Clean speech-to-text artifacts: trailing !, ।, extra spaces
-function clean(s){
-  if(!s)return s;
-  return s.replace(/[!।?]/g,'').replace(/\s+/g,' ').trim();
-}
-
+function clean(s){if(!s)return s;return s.replace(/[!।?]/g,'').replace(/\s+/g,' ').trim();}
 function bdg(s){
   const m={'Converted':['bg','Converted'],'In Progress':['ba','In Progress'],'No Answer':['br','No Answer'],'Pending':['bb','Pending']};
   const[c,l]=m[s]||['bb',s||'Unknown'];
