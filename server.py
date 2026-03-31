@@ -1,14 +1,20 @@
 """
-server.py — Priya | Vedacharya Adivasi Hair Oil | ULTRA-LOW LATENCY BUILD v5
+server.py — Priya | Vedacharya Adivasi Hair Oil | ULTRA-LOW LATENCY BUILD v6
 =============================================================================
 
-v5 FIXES:
-  FIX1 — TTS retry logic (3 attempts, 12s timeout each) — eliminates blank TTS err
-  FIX2 — Explicit TTS error logging (exception type + message, not just empty)
-  FIX3 — Pre-warm audio correctly passed: empty-string pre_aid no longer skips cache
-  FIX4 — Fallback <Say> now uses Hindi-safe Polly voice with proper XML escape
-  FIX5 — Buy intent ("ha lena hai", "ha delivery kardo") → name question always plays
-  FIX6 — mk_twiml logs which path it took (cached / fresh TTS / Polly fallback)
+v6 ADDS:
+  /api/orders      — reads Sheet1, returns JSON for Teleone dashboard
+  /api/transcripts — reads Sheet2, filterable by phone/sid
+  /api/calls       — groups Sheet2 by CallSid, returns call list + transcripts
+  CORS headers on all /api/* routes so GitHub Pages dashboard can fetch live
+
+v5 FIXES (retained):
+  FIX1 — TTS retry logic (3 attempts, 12s timeout each)
+  FIX2 — Explicit TTS error logging
+  FIX3 — Pre-warm audio correctly passed
+  FIX4 — Fallback <Say> uses Hindi-safe Polly voice with XML escape
+  FIX5 — Buy intent always plays name question
+  FIX6 — mk_twiml logs which path it took
 """
 
 import os, json, base64, asyncio, datetime, re
@@ -293,14 +299,14 @@ async def prewarm():
             print(f"⚠️  pre-warm failed [{key}]: {audio}")
 
 # ═══════════════════════════════════════════════════
-# SARVAM TTS  —  v5: retry x3, 12s timeout, full error logging
+# SARVAM TTS  —  retry x3, 12s timeout, full error logging
 # ═══════════════════════════════════════════════════
 async def tts(text: str) -> bytes | None:
     if not SARVAM_API_KEY or not text:
         return None
     text = text[:250].strip()
 
-    for attempt in range(1, 4):          # up to 3 attempts
+    for attempt in range(1, 4):
         try:
             s = await http()
             async with s.post(
@@ -318,7 +324,7 @@ async def tts(text: str) -> bytes | None:
                     "enable_preprocessing": True,
                     "model":                "bulbul:v2",
                 },
-                timeout=aiohttp.ClientTimeout(total=12),   # was 8s, now 12s
+                timeout=aiohttp.ClientTimeout(total=12),
             ) as r:
                 if r.status != 200:
                     body = (await r.text())[:200]
@@ -371,7 +377,7 @@ async def audio_serve(request):
     )
 
 # ═══════════════════════════════════════════════════
-# TWIML BUILDER  —  v5: pre_aid fix + detailed path logging
+# TWIML BUILDER
 # ═══════════════════════════════════════════════════
 def _xe(t): return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -393,7 +399,6 @@ _GATHER = (
 async def mk_twiml(text: str, action: str, hangup=False, pre_aid: str = "") -> str:
     aid = ""
 
-    # FIX3: pre_aid is a cache key like "w_ask_name" — check it's non-empty AND in cache
     if pre_aid and pre_aid in _ac:
         aid = pre_aid
         print(f"🎵 mk_twiml: using PRE-WARMED audio [{pre_aid}]")
@@ -472,7 +477,6 @@ _BUY = {
     "yes","ok","okay","sure","sahi","chahiye","mangwana","mangana",
     "lena hai","order","order karo","book karo","buy","purchase",
     "bhejo","de do","mangwa do","send karo","le lena","le lunga","le lungi","lelo",
-    # FIX5: additional buy phrases ("ha" removed — too short, handled by regex below)
     "kar do","deliver","delivery kardo","delivery kar do",
     "mangwa lo","bhejna","bhej do","confirm","confirmed",
 }
@@ -501,7 +505,6 @@ def is_price_q(t):
     if any(w in tl for w in _PRICE_Q): return True
     return any(re.search(p, tl) for p in _PRICE_PATTERNS)
 
-# FIX-GPT-GUARD: detect if GPT hallucinated order confirmation before collecting details
 _CONFIRM_GUARD = [
     r"ऑर्डर.{0,10}(दर्ज|पुष्टि|हो गया|confirm)",
     r"(पुष्टि|confirm).{0,15}(कर दिया|हो गई|हो गया)",
@@ -516,19 +519,16 @@ def gpt_hallucinated_order(reply: str) -> bool:
 
 def is_buy(t):
     tl = t.lower().strip()
-    # If starts with a negation word, it's not a buy — check first
     if any(tl.startswith(w) for w in _NO):
         return False
     if any(w in tl for w in _BUY):
         return True
-    # "ha" / "han" / "he" alone as standalone confirmation
     if re.match(r"^h[ae]n?$", tl):
         return True
-    # Regex for common buy phrases not caught by word-set
     buy_patterns = [
         r"\border\b",
         r"\b(delivery|deliver)\s*(kar\s*do|kardo|karo)\b",
-        r"^\s*ha\s+(lena|lelo|bhejo|kardo|kar\s*do|deliver)\b",  # "ha" must lead
+        r"^\s*ha\s+(lena|lelo|bhejo|kardo|kar\s*do|deliver)\b",
         r"\bconfirm\b",
         r"\bbhej\s*do\b",
         r"\bchahiye\b",
@@ -591,12 +591,10 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
     _CLEAR_GREETINGS = {"hello","helo","hlo","hi","हेलो"}
     tl_stripped = t.lower().strip("?!., ")
 
-    # In permission state, broad hello re-greet
     if state == "permission" and (tl_stripped in _CLEAR_GREETINGS or
        tl_stripped in {"haan ji","ji","bol","bolo","ha","han","hmm","hm","are","arre","जी","बोलिए"}):
         return static(_v(_GREET, cs["turn"]))
 
-    # In other states only re-ask on clear greetings (not "ha" which could be buy)
     if state != "permission" and tl_stripped in _CLEAR_GREETINGS:
         _reask = {
             "hair_problem":       _v(_ASK_HAIR, cs["turn"]),
@@ -647,7 +645,6 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
         if is_price_q(t):
             return static(_v(_PRICE_ANSWER, cs["turn"]))
 
-        # Direct answers for common pitch questions — faster than GPT, no TTS failure risk
         tl = t.lower()
         if any(w in tl for w in ["safed","सफेद","white hair","safed baal","safed bal"]):
             return static("आंवला और ब्राह्मी बालों को समय से पहले सफेद होने से रोकते हैं — 30 दिन में फर्क दिखेगा। नाम बताइए।")
@@ -662,7 +659,6 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
         if any(w in tl for w in ["kaise lagaye","kaise use","उपयोग","इस्तेमाल","lagane ka tarika"]):
             return static("रात को हल्की मालिश करें, सुबह शैंपू से धो लें — हफ्ते में 2-3 बार। नाम बताइए।")
 
-        # All other pitch questions → GPT
         return t, False, True, ""
 
     if state == "collecting_name":
@@ -671,8 +667,8 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
                 r"^(mera naam|mera name|main|i am|naam hai|name is|मेरा नाम है|मेरा नाम|मैं|नाम)\s+",
                 "", t, flags=re.IGNORECASE
             ).strip()
-            name = re.sub(r"\s+है\s*$", "", name).strip()   # strip trailing "है"
-            name = re.sub(r"[।!?,.]", "", name).strip().title()  # strip speech artifacts
+            name = re.sub(r"\s+है\s*$", "", name).strip()
+            name = re.sub(r"[।!?,.]", "", name).strip().title()
             cs["name"] = name
             reply = f"{name} जी, " + _v(_ASK_CITY, cs["turn"])
             return static(reply, next_state="collecting_city",
@@ -688,7 +684,6 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
 
     if state == "collecting_address":
         if len(t) >= 5:
-            # Clean speech-to-text punctuation artifacts from address
             clean_addr = re.sub(r"[।!]", "", t).strip().rstrip(",").strip()
             cs["address"] = f"{clean_addr}, {cs['city']}"
             return static(_ASK_PIN, next_state="collecting_pincode",
@@ -710,8 +705,6 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
     if state == "confirming":
         if is_buy(t):
             cs["state"] = "done"
-            # CRITICAL FIX: await save_order BEFORE returning
-            # asyncio.create_task was fire-and-forget — Hangup killed it before Sheet write
             await save_order(
                 cs["name"], cs["address"], cs["pincode"], cs["caller"], cs.get("city","")
             )
@@ -732,13 +725,12 @@ async def process(sid: str, text: str, caller: str) -> tuple[str, bool, bool, st
 async def save_order(name, address, pincode, phone, city=""):
     ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"📦 ORDER → {name} | {city} | {pincode} | {phone}")
-    # Always write to Google Sheets if configured — this is now awaited so it completes before hangup
     if GOOGLE_SHEET_ID and GOOGLE_CREDS_JSON:
         loop = asyncio.get_event_loop()
         try:
             await asyncio.wait_for(
                 loop.run_in_executor(None, _sheet_write, name, city, address, pincode, phone, ts),
-                timeout=8.0   # max 8s — never block forever
+                timeout=8.0
             )
         except asyncio.TimeoutError:
             print(f"⏱️  Sheet write timeout — order {name}|{pincode} not saved to Sheet1")
@@ -789,8 +781,6 @@ def _batch_transcript_write(ts, sid, caller, state,
         svc = _build_sheets_service()
         if not svc: return
         rows = []
-        # FIX-SHEET2: seq removed from rows — it was landing in Timestamp column
-        # Sheet2 headers: Timestamp | CallSid | Phone | Speaker | State | Message
         if user_text:
             rows.append([ts, sid, caller, "User",  state, user_text])
         if priya_text:
@@ -808,7 +798,162 @@ def _batch_transcript_write(ts, sid, caller, state,
         print(f"❌ Sheet2 error: {e}")
 
 # ═══════════════════════════════════════════════════
-# ROUTES
+# DASHBOARD API — CORS helper
+# ═══════════════════════════════════════════════════
+def _cors(response):
+    """Add CORS headers so GitHub Pages dashboard can call this Render server."""
+    response.headers["Access-Control-Allow-Origin"]  = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
+
+async def api_cors_preflight(request):
+    """Handle OPTIONS pre-flight for all /api/* routes."""
+    return _cors(web.Response(status=204))
+
+# ─── Helper: synchronous sheet reader ───────────────────────────
+def _sheet_read(range_: str) -> list:
+    svc = _build_sheets_service()
+    if not svc:
+        raise RuntimeError("Google Sheets service not available")
+    result = svc.spreadsheets().values().get(
+        spreadsheetId=GOOGLE_SHEET_ID,
+        range=range_,
+    ).execute()
+    return result.get("values", [])
+
+# ─── /api/orders  (Sheet1) ──────────────────────────────────────
+async def api_orders(request):
+    try:
+        loop = asyncio.get_event_loop()
+        rows = await asyncio.wait_for(
+            loop.run_in_executor(None, _sheet_read, "Sheet1!A:I"),
+            timeout=10.0,
+        )
+    except asyncio.TimeoutError:
+        return _cors(web.json_response({"error": "Sheet read timeout"}, status=504))
+    except Exception as e:
+        return _cors(web.json_response({"error": str(e)}, status=500))
+
+    orders = []
+    for row in rows:
+        if not row or (row[0] and row[0].strip().lower() in ("timestamp", "date")):
+            continue
+        def g(i, r=row): return r[i].strip() if len(r) > i else ""
+        orders.append({
+            "timestamp": g(0),
+            "name":      g(1),
+            "city":      g(2),
+            "address":   g(3),
+            "pincode":   g(4),
+            "phone":     g(5),
+            "product":   g(6),
+            "price":     g(7),
+            "status":    g(8) or "Pending",
+        })
+
+    return _cors(web.json_response({"ok": True, "orders": orders, "total": len(orders)}))
+
+# ─── /api/transcripts  (Sheet2) ─────────────────────────────────
+async def api_transcripts(request):
+    phone_filter = request.rel_url.query.get("phone", "").strip()
+    sid_filter   = request.rel_url.query.get("sid",   "").strip()
+
+    try:
+        loop = asyncio.get_event_loop()
+        rows = await asyncio.wait_for(
+            loop.run_in_executor(None, _sheet_read, "Sheet2!A:F"),
+            timeout=10.0,
+        )
+    except asyncio.TimeoutError:
+        return _cors(web.json_response({"error": "Sheet read timeout"}, status=504))
+    except Exception as e:
+        return _cors(web.json_response({"error": str(e)}, status=500))
+
+    transcripts = []
+    for row in rows:
+        if not row or (row[0] and row[0].strip().lower() in ("timestamp", "date")):
+            continue
+        def g(i, r=row): return r[i].strip() if len(r) > i else ""
+        entry = {
+            "timestamp": g(0), "sid": g(1), "phone": g(2),
+            "speaker": g(3),   "state": g(4), "message": g(5),
+        }
+        if phone_filter and phone_filter not in entry["phone"]: continue
+        if sid_filter   and sid_filter   != entry["sid"]:       continue
+        transcripts.append(entry)
+
+    return _cors(web.json_response({"ok": True, "transcripts": transcripts, "total": len(transcripts)}))
+
+# ─── /api/calls  — unique calls derived from Sheet2 ─────────────
+async def api_calls(request):
+    try:
+        loop = asyncio.get_event_loop()
+        rows = await asyncio.wait_for(
+            loop.run_in_executor(None, _sheet_read, "Sheet2!A:F"),
+            timeout=10.0,
+        )
+    except asyncio.TimeoutError:
+        return _cors(web.json_response({"error": "Sheet read timeout"}, status=504))
+    except Exception as e:
+        return _cors(web.json_response({"error": str(e)}, status=500))
+
+    calls_map: dict = {}
+    for row in rows:
+        if not row or (row[0] and row[0].strip().lower() in ("timestamp", "date")):
+            continue
+        def g(i, r=row): return r[i].strip() if len(r) > i else ""
+        ts = g(0); sid = g(1); phone = g(2)
+        speaker = g(3); state = g(4); msg = g(5)
+        if not sid:
+            continue
+        if sid not in calls_map:
+            calls_map[sid] = {
+                "sid": sid, "phone": phone,
+                "first_ts": ts, "last_ts": ts,
+                "last_state": state, "turns": 0, "messages": [],
+            }
+        c = calls_map[sid]
+        if ts > c["last_ts"]:
+            c["last_ts"] = ts
+            c["last_state"] = state
+        c["turns"] += 1
+        c["messages"].append({"timestamp": ts, "speaker": speaker, "state": state, "message": msg})
+
+    # Cross-reference Sheet1 to mark conversions
+    try:
+        order_rows = await asyncio.wait_for(
+            asyncio.get_event_loop().run_in_executor(None, _sheet_read, "Sheet1!A:F"),
+            timeout=8.0,
+        )
+        converted_phones = {row[5].strip() for row in order_rows if row and len(row) > 5}
+    except Exception:
+        converted_phones = set()
+
+    calls_list = []
+    for c in calls_map.values():
+        if c["phone"] in converted_phones or c["last_state"] == "done":
+            status = "Converted"
+        elif c["turns"] <= 2:
+            status = "No Answer"
+        else:
+            status = "In Progress"
+        calls_list.append({
+            "sid":        c["sid"],
+            "phone":      c["phone"],
+            "date":       c["first_ts"][:10]   if len(c["first_ts"]) >= 10 else "",
+            "time":       c["first_ts"][11:16] if len(c["first_ts"]) >= 16 else "",
+            "last_state": c["last_state"],
+            "turns":      c["turns"],
+            "status":     status,
+            "messages":   c["messages"],
+        })
+
+    calls_list.sort(key=lambda x: x["date"] + x["time"], reverse=True)
+    return _cors(web.json_response({"ok": True, "calls": calls_list, "total": len(calls_list)}))
+
+# ═══════════════════════════════════════════════════
+# HEALTH & TWILIO ROUTES
 # ═══════════════════════════════════════════════════
 async def health(request):
     return web.json_response({
@@ -819,11 +964,9 @@ async def health(request):
         "warm_cache_keys": list(_warm.values()),
         "sheets_svc_ready": _sheets_svc is not None,
         "port": PORT,
+        "dashboard_api": ["GET /api/orders", "GET /api/calls", "GET /api/transcripts"],
     })
 
-# ═══════════════════════════════════════════════════
-# TWILIO WEBHOOKS
-# ═══════════════════════════════════════════════════
 async def voice_start(request):
     try:    data = await request.post()
     except: data = {}
@@ -851,9 +994,8 @@ async def voice_respond(request):
           + (" ⚠️LOW" if 0 < confidence < 0.4 else "")
           + (" 🔇EMPTY" if not speech else ""))
 
-    # Low confidence in pitch — ask to repeat
     if speech and confidence > 0 and confidence < 0.5 and len(speech.split()) <= 3:
-        if sid not in _calls: _calls[sid] = new_cs(caller)  # FIX: store, not discard
+        if sid not in _calls: _calls[sid] = new_cs(caller)
         cs    = _calls[sid]
         state = cs.get("state", "permission")
         if state == "pitch":
@@ -863,7 +1005,7 @@ async def voice_respond(request):
             return web.Response(text=tw, content_type="application/xml")
 
     if no_speech == "1" or (not speech):
-        if sid not in _calls: _calls[sid] = new_cs(caller)  # FIX: store, not discard
+        if sid not in _calls: _calls[sid] = new_cs(caller)
         cs    = _calls[sid]
         state = cs.get("state", "permission")
         msg   = {
@@ -884,7 +1026,6 @@ async def voice_respond(request):
 
     if use_gpt:
         gpt_text = await gpt(cs, speech)
-        # FIX-GPT-GUARD: if GPT hallucinated order confirmation, redirect to name collection
         if cs.get("state") == "pitch" and gpt_hallucinated_order(gpt_text):
             print(f"🚨 GPT hallucinated order confirm in pitch — intercepted, asking name")
             gpt_text = _v(_ASK_NAME, cs.get("turn", 0))
@@ -942,10 +1083,16 @@ def create_app():
     app = web.Application(client_max_size=8 * 1024 * 1024)
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
+    # ── Twilio voice routes ──
     app.router.add_get("/",                health)
     app.router.add_post("/voice/start",    voice_start)
     app.router.add_post("/voice/respond",  voice_respond)
     app.router.add_get("/audio/{aid}",     audio_serve)
+    # ── Dashboard API routes (NEW in v6) ──
+    app.router.add_route("OPTIONS", "/api/{path_info:.*}", api_cors_preflight)
+    app.router.add_get("/api/orders",      api_orders)
+    app.router.add_get("/api/transcripts", api_transcripts)
+    app.router.add_get("/api/calls",       api_calls)
     return app
 
 # ═══════════════════════════════════════════════════
@@ -960,6 +1107,7 @@ if __name__ == "__main__":
     print(f"  Orders     {'✅ Sheet1' if GOOGLE_SHEET_ID else '⚠️  logs only'}")
     print(f"  Transcript {'✅ Sheet2' if GOOGLE_SHEET_ID else '⚠️  logs only'}")
     print(f"  Pre-warm   ✅ {len(_PREWARM_MAP)} replies (background)")
+    print(f"  Dashboard  ✅ /api/orders · /api/calls · /api/transcripts")
     print("═" * 55)
     web.run_app(
         create_app(),
